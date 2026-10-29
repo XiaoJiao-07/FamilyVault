@@ -1,0 +1,30 @@
+{
+  "name": "familyvault",
+  "version": "1.0.0",
+  "description": "FamilyVault · 家史馆 - 开源家庭记忆操作系统",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "npm run dev --workspace=client",
+    "dev:server": "npm run dev --workspace=server",
+    "build": "npm run build --workspace=client",
+    "start": "npm run start --workspace=server"
+  },
+  "keywords": [
+    "family",
+    "memory",
+    "oral-history",
+    "knowledge-graph",
+    "ai-interview",
+    "dialect-preservation"
+  ],
+  "author": "XiaoJiao-07",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
