@@ -1,13 +1,26 @@
 import express from 'express'
-import { getDatabase } from '../models/database.js'
+import { getDatabase, autoSave } from '../models/database.js'
 
 const router = express.Router()
 
 // 获取家族图谱数据
-router.get('/members', (req, res) => {
+router.get('/members', async (req, res) => {
   try {
-    const db = getDatabase()
-    const members = db.prepare('SELECT * FROM family_members').all()
+    const db = await getDatabase()
+    const result = db.exec('SELECT * FROM family_members')
+
+    let members = []
+    if (result.length > 0) {
+      const columns = result[0].columns
+      members = result[0].values.map(row => {
+        const obj = {}
+        columns.forEach((col, idx) => {
+          obj[col] = row[idx]
+        })
+        return obj
+      })
+    }
+
     res.json({ success: true, data: members })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
@@ -15,10 +28,10 @@ router.get('/members', (req, res) => {
 })
 
 // 获取家族关系
-router.get('/relationships', (req, res) => {
+router.get('/relationships', async (req, res) => {
   try {
-    const db = getDatabase()
-    const relationships = db.prepare(`
+    const db = await getDatabase()
+    const result = db.exec(`
       SELECT
         r.*,
         m1.name as from_name,
@@ -26,7 +39,20 @@ router.get('/relationships', (req, res) => {
       FROM family_relationships r
       JOIN family_members m1 ON r.from_member_id = m1.id
       JOIN family_members m2 ON r.to_member_id = m2.id
-    `).all()
+    `)
+
+    let relationships = []
+    if (result.length > 0) {
+      const columns = result[0].columns
+      relationships = result[0].values.map(row => {
+        const obj = {}
+        columns.forEach((col, idx) => {
+          obj[col] = row[idx]
+        })
+        return obj
+      })
+    }
+
     res.json({ success: true, data: relationships })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
@@ -34,20 +60,23 @@ router.get('/relationships', (req, res) => {
 })
 
 // 添加家族成员
-router.post('/members', (req, res) => {
+router.post('/members', async (req, res) => {
   try {
     const { name, gender, birthYear, deathYear, hometown, occupation, bio, avatar } = req.body
-    const db = getDatabase()
+    const db = await getDatabase()
 
-    const stmt = db.prepare(`
-      INSERT INTO family_members (name, gender, birth_year, death_year, hometown, occupation, bio, avatar)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-    const result = stmt.run(name, gender, birthYear, deathYear, hometown, occupation, bio, avatar)
+    db.run(
+      'INSERT INTO family_members (name, gender, birth_year, death_year, hometown, occupation, bio, avatar) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, gender, birthYear, deathYear, hometown, occupation, bio, avatar]
+    )
+    autoSave()
+
+    const result = db.exec('SELECT last_insert_rowid() as id')
+    const id = result[0].values[0][0]
 
     res.json({
       success: true,
-      data: { id: result.lastInsertRowid, name, gender, birthYear, deathYear, hometown, occupation, bio, avatar }
+      data: { id, name, gender, birthYear, deathYear, hometown, occupation, bio, avatar }
     })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
@@ -55,33 +84,48 @@ router.post('/members', (req, res) => {
 })
 
 // 添加家族关系
-router.post('/relationships', (req, res) => {
+router.post('/relationships', async (req, res) => {
   try {
     const { fromMemberId, toMemberId, relationshipType, description, sourceMessageId } = req.body
-    const db = getDatabase()
+    const db = await getDatabase()
 
-    const stmt = db.prepare(`
-      INSERT INTO family_relationships (from_member_id, to_member_id, relationship_type, description, source_message_id)
-      VALUES (?, ?, ?, ?, ?)
-    `)
-    const result = stmt.run(fromMemberId, toMemberId, relationshipType, description, sourceMessageId)
+    db.run(
+      'INSERT INTO family_relationships (from_member_id, to_member_id, relationship_type, description, source_message_id) VALUES (?, ?, ?, ?, ?)',
+      [fromMemberId, toMemberId, relationshipType, description, sourceMessageId]
+    )
+    autoSave()
+
+    const result = db.exec('SELECT last_insert_rowid() as id')
+    const id = result[0].values[0][0]
 
     res.json({
       success: true,
-      data: { id: result.lastInsertRowid, fromMemberId, toMemberId, relationshipType, description }
+      data: { id, fromMemberId, toMemberId, relationshipType, description }
     })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
   }
 })
 
-// 获取图谱完整数据（节点+边）
-router.get('/full', (req, res) => {
+// 获取图谱完整数据（节点 + 边）
+router.get('/full', async (req, res) => {
   try {
-    const db = getDatabase()
+    const db = await getDatabase()
 
-    const nodes = db.prepare('SELECT * FROM family_members').all()
-    const edges = db.prepare(`
+    const nodesResult = db.exec('SELECT * FROM family_members')
+    let nodes = []
+    if (nodesResult.length > 0) {
+      const columns = nodesResult[0].columns
+      nodes = nodesResult[0].values.map(row => {
+        const obj = {}
+        columns.forEach((col, idx) => {
+          obj[col] = row[idx]
+        })
+        return obj
+      })
+    }
+
+    const edgesResult = db.exec(`
       SELECT
         r.id,
         r.from_member_id as source,
@@ -89,7 +133,18 @@ router.get('/full', (req, res) => {
         r.relationship_type as label,
         r.description
       FROM family_relationships r
-    `).all()
+    `)
+    let edges = []
+    if (edgesResult.length > 0) {
+      const columns = edgesResult[0].columns
+      edges = edgesResult[0].values.map(row => {
+        const obj = {}
+        columns.forEach((col, idx) => {
+          obj[col] = row[idx]
+        })
+        return obj
+      })
+    }
 
     res.json({
       success: true,

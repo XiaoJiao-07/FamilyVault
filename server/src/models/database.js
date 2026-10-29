@@ -1,4 +1,5 @@
-import Database from 'better-sqlite3'
+import initSqlJs from 'sql.js'
+import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -8,21 +9,45 @@ const __dirname = path.dirname(__filename)
 const dbPath = path.join(__dirname, '../../../data/database.sqlite')
 
 let db = null
+let SQL = null
 
-export function getDatabase() {
+export async function getDatabase() {
   if (!db) {
-    db = new Database(dbPath)
-    db.pragma('journal_mode = WAL')
-    db.pragma('foreign_keys = ON')
+    if (!SQL) {
+      SQL = await initSqlJs()
+    }
+
+    // 如果数据库文件存在，加载它
+    if (fs.existsSync(dbPath)) {
+      const fileBuffer = fs.readFileSync(dbPath)
+      db = new SQL.Database(fileBuffer)
+    } else {
+      db = new SQL.Database()
+    }
+
+    // 确保 data 目录存在
+    const dataDir = path.dirname(dbPath)
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true })
+    }
   }
   return db
 }
 
-export function initDatabase() {
-  const database = getDatabase()
+// 保存数据库到文件
+function saveDatabase() {
+  if (db) {
+    const data = db.export()
+    const buffer = Buffer.from(data)
+    fs.writeFileSync(dbPath, buffer)
+  }
+}
 
-  // Create tables
-  database.exec(`
+export async function initDatabase() {
+  const database = await getDatabase()
+
+  // 创建表
+  database.run(`
     -- 采访对象表
     CREATE TABLE IF NOT EXISTS interviewees (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -135,12 +160,21 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_capsules_unlock ON time_capsules(unlock_date, is_unlocked);
   `)
 
+  // 保存数据库
+  saveDatabase()
+
   console.log('✅ Database initialized successfully')
 }
 
 export function closeDatabase() {
   if (db) {
+    saveDatabase()
     db.close()
     db = null
   }
+}
+
+// 自动保存（每次修改后）
+export function autoSave() {
+  saveDatabase()
 }
