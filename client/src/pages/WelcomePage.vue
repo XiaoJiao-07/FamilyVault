@@ -143,12 +143,12 @@ const goToSlide = (index) => {
 
 const skipWelcome = () => {
   localStorage.setItem('welcomeShown', 'true')
-  router.push('/')
+  router.push('/login')
 }
 
 const startUsing = () => {
   localStorage.setItem('welcomeShown', 'true')
-  router.push('/interview')
+  router.push('/login')
 }
 </script>
 

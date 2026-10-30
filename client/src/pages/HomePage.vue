@@ -129,20 +129,97 @@
     <div class="section">
       <van-cell title="关于 FamilyVault" is-link @click="$router.push('/about')" />
     </div>
+
+    <!-- 用户信息 -->
+    <div class="section" v-if="currentUser">
+      <van-cell-group inset>
+        <van-cell :title="`当前用户：${currentUser.displayName}`" :label="currentUser.username">
+          <template #right-icon>
+            <van-button size="small" plain type="default" @click="showInviteCode = true">
+              邀请码
+            </van-button>
+            <van-button size="small" plain type="danger" @click="logout" style="margin-left: 8px">
+              退出
+            </van-button>
+          </template>
+        </van-cell>
+      </van-cell-group>
+    </div>
+
+    <!-- 邀请码弹窗 -->
+    <van-popup v-model:show="showInviteCode" position="bottom" round :style="{ height: '40%' }">
+      <div class="invite-code-panel">
+        <div class="panel-header">
+          <h3>邀请码管理</h3>
+          <van-icon name="cross" size="20" @click="showInviteCode = false" />
+        </div>
+        <div class="panel-content">
+          <van-button type="primary" block round @click="generateCode" :loading="generating">
+            生成新邀请码
+          </van-button>
+          <div v-if="generatedCode" class="code-result">
+            <p>邀请码：</p>
+            <div class="code-display">{{ generatedCode }}</div>
+            <p class="code-hint">有效期 7 天，可使用 1 次</p>
+            <van-button size="small" plain type="primary" @click="copyCode">
+              复制
+            </van-button>
+          </div>
+        </div>
+      </div>
+    </van-popup>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
+import { authAPI } from '@/utils/api'
 
+const router = useRouter()
 const isDarkMode = ref(false)
+const currentUser = ref(null)
+const showInviteCode = ref(false)
+const generatedCode = ref('')
+const generating = ref(false)
 
 const toggleDarkMode = () => {
   isDarkMode.value = !isDarkMode.value
   localStorage.setItem('darkMode', isDarkMode.value)
   document.documentElement.classList.toggle('dark', isDarkMode.value)
+}
+
+const logout = async () => {
+  await authAPI.logout()
+  showToast('已退出登录')
+  router.push('/login')
+}
+
+const generateCode = async () => {
+  generating.value = true
+  try {
+    const result = await authAPI.generateInvitationCode()
+    if (result.success) {
+      generatedCode.value = result.code
+      showToast('生成成功')
+    } else {
+      showToast(result.message || '生成失败')
+    }
+  } catch (err) {
+    showToast('生成失败：' + err.message)
+  } finally {
+    generating.value = false
+  }
+}
+
+const copyCode = () => {
+  navigator.clipboard.writeText(generatedCode.value).then(() => {
+    showToast('已复制')
+  }).catch(() => {
+    showToast('复制失败，请手动复制')
+  })
 }
 
 const shareApp = async () => {
@@ -181,6 +258,7 @@ onMounted(() => {
     document.documentElement.classList.add('dark')
   }
   loadStats()
+  currentUser.value = authAPI.getCurrentUser()
 })
 
 const stats = ref({
@@ -590,5 +668,58 @@ const dailyQuote = ref({
 
 .empty-activities p {
   margin: 0;
+}
+
+.invite-code-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.panel-content {
+  padding: 20px;
+  flex: 1;
+}
+
+.code-result {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.code-result p {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 12px;
+}
+
+.code-display {
+  font-size: 24px;
+  font-weight: 700;
+  color: #007aff;
+  background: #f0f7ff;
+  padding: 16px;
+  border-radius: 12px;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+.code-hint {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 16px;
 }
 </style>
