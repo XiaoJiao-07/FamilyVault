@@ -2,88 +2,62 @@
   <div class="capsule-page">
     <van-nav-bar title="时光胶囊" left-arrow @click-left="$router.back()" />
 
-    <!-- 空状态 -->
-    <div v-if="!hasCapsules" class="empty-state">
-      <van-icon name="clock-o" size="64" color="#ddd" />
-      <p class="empty-title">时光胶囊</p>
-      <p class="empty-desc">给未来的人录一段话，设定日期解锁</p>
-      <van-button type="primary" plain @click="showCreate = true">
-        创建胶囊
-      </van-button>
-    </div>
-
     <!-- 胶囊列表 -->
-    <div v-else class="capsule-list">
-      <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-        <van-list>
-          <div
-            v-for="capsule in capsules"
-            :key="capsule.id"
-            class="capsule-card"
-            :class="{ locked: !capsule.is_unlocked, unlocked: capsule.is_unlocked }"
-          >
-            <div class="capsule-header">
-              <van-icon
-                :name="capsule.is_unlocked ? 'lock-open' : 'lock'"
-                :class="capsule.is_unlocked ? 'unlocked-icon' : 'locked-icon'"
-              />
-              <div class="capsule-info">
-                <div class="capsule-title">{{ capsule.title }}</div>
-                <div class="capsule-meta">
-                  给 {{ capsule.to_person }} · {{ capsule.unlock_date }} 解锁
-                </div>
-              </div>
-            </div>
-
-            <div class="capsule-content">
-              <div v-if="capsule.is_unlocked" class="unlocked-content">
-                <p>{{ capsule.content }}</p>
-                <div v-if="capsule.media_url" class="media-preview">
-                  <van-image
-                    v-if="capsule.message_type === 'image'"
-                    :src="capsule.media_url"
-                    fit="cover"
-                  />
-                  <audio
-                    v-else-if="capsule.message_type === 'audio'"
-                    :src="capsule.media_url"
-                    controls
-                  />
-                </div>
-              </div>
-              <div v-else class="locked-content">
-                <van-icon name="lock" size="40" color="#ddd" />
-                <p>距离解锁还有 {{ capsule.days_left }} 天</p>
-              </div>
-            </div>
-
-            <div class="capsule-footer">
-              <van-tag :type="capsule.is_unlocked ? 'success' : 'warning'">
-                {{ capsule.is_unlocked ? '已解锁' : '未解锁' }}
-              </van-tag>
-              <van-button
-                v-if="!capsule.is_unlocked && capsule.can_unlock"
-                size="small"
-                type="primary"
-                @click="unlockCapsule(capsule.id)"
-              >
-                立即解锁
-              </van-button>
+    <div class="capsule-list">
+      <div
+        v-for="capsule in capsules"
+        :key="capsule.id"
+        class="capsule-card"
+        :class="{ locked: !capsule.is_unlocked, unlocked: capsule.is_unlocked }"
+      >
+        <div class="capsule-header">
+          <div class="capsule-icon" :class="capsule.is_unlocked ? 'unlocked-bg' : 'locked-bg'">
+            <van-icon :name="capsule.is_unlocked ? 'passed' : 'lock'" size="22" :color="capsule.is_unlocked ? '#07c160' : '#ff976a'" />
+          </div>
+          <div class="capsule-info">
+            <div class="capsule-title">{{ capsule.title }}</div>
+            <div class="capsule-meta">
+              给 {{ capsule.to_person }} · {{ capsule.unlock_date }} 解锁
             </div>
           </div>
-        </van-list>
-      </van-pull-refresh>
+        </div>
 
-      <!-- 创建按钮 -->
-      <van-button
-        class="create-btn"
-        type="primary"
-        icon="plus"
-        round
-        @click="showCreate = true"
-      >
-        创建胶囊
-      </van-button>
+        <div class="capsule-content">
+          <div v-if="capsule.is_unlocked" class="unlocked-content">
+            <p>{{ capsule.content }}</p>
+          </div>
+          <div v-else class="locked-content">
+            <div class="lock-visual">
+              <div class="lock-icon"><van-icon name="lock" size="32" color="#ff976a" /></div>
+              <div class="countdown">
+                <span class="days">{{ capsule.days_left }}</span>
+                <span class="unit">天</span>
+              </div>
+            </div>
+            <p>距离解锁还有 {{ capsule.days_left }} 天</p>
+          </div>
+        </div>
+
+        <div class="capsule-footer">
+          <van-tag :type="capsule.is_unlocked ? 'success' : 'warning'" round>
+            {{ capsule.is_unlocked ? '已解锁' : '未解锁' }}
+          </van-tag>
+          <van-button
+            v-if="!capsule.is_unlocked && capsule.can_unlock"
+            size="small"
+            type="primary"
+            round
+            @click="unlockCapsule(capsule.id)"
+          >
+            立即解锁
+          </van-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 创建按钮 -->
+    <div class="fab" @click="showCreate = true">
+      <van-icon name="plus" size="24" color="white" />
     </div>
 
     <!-- 创建胶囊弹窗 -->
@@ -91,7 +65,7 @@
       v-model:show="showCreate"
       position="bottom"
       round
-      :style="{ height: '70%' }"
+      :style="{ height: '65%' }"
     >
       <div class="create-form">
         <h3>创建时光胶囊</h3>
@@ -149,12 +123,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { showToast } from 'vant'
-import { capsuleApi } from '@/services/api'
+import storage, { STORAGE_KEYS } from '@/utils/storage'
 
 const capsules = ref([])
-const refreshing = ref(false)
 const showCreate = ref(false)
 
 const newCapsule = ref({
@@ -166,104 +139,96 @@ const newCapsule = ref({
   message_type: 'text'
 })
 
-const hasCapsules = computed(() => capsules.value.length > 0)
-
-// 加载胶囊列表
-const loadCapsules = async () => {
-  try {
-    const res = await capsuleApi.getCapsules()
-    if (res.success) {
-      capsules.value = res.data.map(c => ({
-        ...c,
-        days_left: Math.ceil((new Date(c.unlock_date) - new Date()) / (1000 * 60 * 60 * 24)),
-        can_unlock: new Date(c.unlock_date) <= new Date()
-      }))
-    }
-  } catch (error) {
-    console.error('加载胶囊失败:', error)
+// 默认胶囊数据（首次使用时）
+const defaultCapsules = [
+  {
+    id: 1,
+    from_person: '爸爸',
+    to_person: '未来的儿子',
+    title: '给 30 岁的你',
+    content: '儿子，当你看到这个的时候，应该已经 30 岁了。爸爸想告诉你，无论遇到什么困难，都要保持乐观。人生没有过不去的坎，只有过不去的心情。记住，家永远是你的港湾。',
+    message_type: 'text',
+    unlock_date: '2035-01-01',
+    is_unlocked: false
+  },
+  {
+    id: 2,
+    from_person: '妈妈',
+    to_person: '女儿',
+    title: '结婚当天的祝福',
+    content: '亲爱的女儿，今天是你结婚的日子，妈妈为你感到骄傲。从你出生的那一刻起，你就是妈妈最珍贵的礼物。现在你找到了自己的幸福，妈妈真心祝福你。',
+    message_type: 'text',
+    unlock_date: '2025-06-01',
+    is_unlocked: true
+  },
+  {
+    id: 3,
+    from_person: '爷爷',
+    to_person: '曾孙',
+    title: '家族的故事',
+    content: '孩子，我是你的曾祖父。虽然你可能没见过我，但我想告诉你我们家族的故事。我们是从湖北武汉走出来的，一代代人勤劳朴实...',
+    message_type: 'text',
+    unlock_date: '2040-01-01',
+    is_unlocked: false
   }
+]
+
+// 保存胶囊到 localStorage
+const saveCapsules = () => {
+  storage.set(STORAGE_KEYS.TIME_CAPSULES, capsules.value)
 }
 
-// 下拉刷新
-const onRefresh = async () => {
-  await loadCapsules()
-  refreshing.value = false
+// 加载胶囊
+const loadCapsules = () => {
+  const saved = storage.get(STORAGE_KEYS.TIME_CAPSULES, null)
+  const data = saved || defaultCapsules
+
+  capsules.value = data.map(c => ({
+    ...c,
+    days_left: Math.max(0, Math.ceil((new Date(c.unlock_date) - new Date()) / (1000 * 60 * 60 * 24))),
+    can_unlock: new Date(c.unlock_date) <= new Date()
+  }))
+
+  // 如果是首次，保存到 localStorage
+  if (!saved) {
+    saveCapsules()
+  }
 }
 
 // 创建胶囊
-const onCreate = async () => {
-  try {
-    const res = await capsuleApi.createCapsule({
-      ...newCapsule.value,
-      message_type: 'text'
-    })
-
-    if (res.success) {
-      showToast('创建成功')
-      showCreate.value = false
-
-      // 重置表单
-      newCapsule.value = {
-        from_person: '',
-        to_person: '',
-        title: '',
-        content: '',
-        unlock_date: '',
-        message_type: 'text'
-      }
-
-      await loadCapsules()
-    }
-  } catch (error) {
-    showToast('创建失败：' + error.message)
+const onCreate = () => {
+  if (!newCapsule.value.title || !newCapsule.value.content) {
+    showToast('请填写完整信息')
+    return
   }
+
+  const newCap = {
+    id: Date.now(),
+    ...newCapsule.value,
+    is_unlocked: false,
+    days_left: Math.ceil((new Date(newCapsule.value.unlock_date) - new Date()) / (1000 * 60 * 60 * 24)),
+    can_unlock: false
+  }
+
+  capsules.value.unshift(newCap)
+  saveCapsules()
+  showToast('创建成功')
+  showCreate.value = false
+  newCapsule.value = { from_person: '', to_person: '', title: '', content: '', unlock_date: '', message_type: 'text' }
 }
 
 // 解锁胶囊
-const unlockCapsule = async (id) => {
-  try {
-    const res = await capsuleApi.unlockCapsule(id)
-    if (res.success) {
-      showToast('解锁成功')
-      await loadCapsules()
-    }
-  } catch (error) {
-    showToast(error.message || '解锁失败')
+const unlockCapsule = (id) => {
+  const capsule = capsules.value.find(c => c.id === id)
+  if (capsule) {
+    capsule.is_unlocked = true
+    saveCapsules()
+    showToast('解锁成功')
   }
 }
 
-// 模拟数据
-const loadMockData = () => {
-  capsules.value = [
-    {
-      id: 1,
-      from_person: '爸爸',
-      to_person: '未来的儿子',
-      title: '给 30 岁的你',
-      content: '儿子，当你看到这个的时候，应该已经 30 岁了。爸爸想告诉你，无论遇到什么困难，都要保持乐观...',
-      message_type: 'text',
-      unlock_date: '2030-01-01',
-      is_unlocked: false,
-      days_left: 1500,
-      can_unlock: false
-    },
-    {
-      id: 2,
-      from_person: '妈妈',
-      to_person: '女儿',
-      title: '结婚当天的祝福',
-      content: '亲爱的女儿，今天是你结婚的日子，妈妈为你感到骄傲...',
-      message_type: 'text',
-      unlock_date: '2025-06-01',
-      is_unlocked: true,
-      days_left: 0,
-      can_unlock: true
-    }
-  ]
-}
-
 onMounted(() => {
-  loadMockData()
+  loadCapsules()
 })
 </script>
 
@@ -273,64 +238,57 @@ onMounted(() => {
   background: #f7f8fa;
   display: flex;
   flex-direction: column;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
-  flex: 1;
-}
-
-.empty-title {
-  margin: 12px 0;
-  font-size: 16px;
-  color: #666;
-}
-
-.empty-desc {
-  font-size: 13px;
-  color: #999;
-  margin-bottom: 24px;
+  position: relative;
 }
 
 .capsule-list {
   flex: 1;
   padding: 16px;
-  position: relative;
+  overflow-y: auto;
 }
 
 .capsule-card {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  margin-bottom: 14px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s;
+}
+
+.capsule-card.unlocked {
+  border-left: 4px solid #07c160;
 }
 
 .capsule-card.locked {
-  opacity: 0.8;
+  border-left: 4px solid #ff976a;
+  opacity: 0.9;
 }
 
 .capsule-header {
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
-.locked-icon {
-  color: #ff976a;
-  font-size: 24px;
+.capsule-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
   margin-right: 12px;
+  flex-shrink: 0;
 }
 
-.unlocked-icon {
-  color: #07c160;
-  font-size: 24px;
-  margin-right: 12px;
+.locked-bg {
+  background: linear-gradient(135deg, #ffecd2, #fcb69f);
+}
+
+.unlocked-bg {
+  background: linear-gradient(135deg, #a8edea, #fed6e3);
 }
 
 .capsule-info {
@@ -339,8 +297,9 @@ onMounted(() => {
 
 .capsule-title {
   font-size: 15px;
-  font-weight: 500;
-  margin-bottom: 4px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 3px;
 }
 
 .capsule-meta {
@@ -349,32 +308,58 @@ onMounted(() => {
 }
 
 .capsule-content {
-  margin-bottom: 12px;
-  padding: 12px;
-  background: #f7f8fa;
-  border-radius: 8px;
+  margin-bottom: 14px;
+  padding: 14px;
+  background: #f8f9fa;
+  border-radius: 12px;
 }
 
 .unlocked-content p {
   margin: 0;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
   color: #333;
 }
 
 .locked-content {
   text-align: center;
-  padding: 20px;
+  padding: 10px 0;
 }
 
-.locked-content p {
-  margin: 12px 0 0 0;
-  font-size: 13px;
+.lock-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.lock-icon {
+  font-size: 32px;
+  opacity: 0.6;
+}
+
+.countdown {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.countdown .days {
+  font-size: 28px;
+  font-weight: 700;
+  color: #ff976a;
+}
+
+.countdown .unit {
+  font-size: 14px;
   color: #999;
 }
 
-.media-preview {
-  margin-top: 12px;
+.locked-content p {
+  margin: 0;
+  font-size: 13px;
+  color: #999;
 }
 
 .capsule-footer {
@@ -383,11 +368,25 @@ onMounted(() => {
   align-items: center;
 }
 
-.create-btn {
+.fab {
   position: fixed;
   bottom: 80px;
   right: 20px;
-  z-index: 1000;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #007aff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+  cursor: pointer;
+  z-index: 100;
+  transition: transform 0.2s;
+}
+
+.fab:active {
+  transform: scale(0.9);
 }
 
 .create-form {
@@ -398,5 +397,6 @@ onMounted(() => {
   margin: 0 0 16px 0;
   font-size: 16px;
   text-align: center;
+  font-weight: 600;
 }
 </style>

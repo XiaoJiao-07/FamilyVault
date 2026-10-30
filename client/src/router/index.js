@@ -2,6 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
   {
+    path: '/welcome',
+    name: 'Welcome',
+    component: () => import('@/pages/WelcomePage.vue'),
+    meta: { title: '欢迎' }
+  },
+  {
     path: '/',
     name: 'Home',
     component: () => import('@/pages/HomePage.vue'),
@@ -36,6 +42,18 @@ const routes = [
     name: 'Heirloom',
     component: () => import('@/pages/HeirloomPage.vue'),
     meta: { title: '传家宝' }
+  },
+  {
+    path: '/about',
+    name: 'About',
+    component: () => import('@/pages/AboutPage.vue'),
+    meta: { title: '关于' }
+  },
+  {
+    path: '/search',
+    name: 'Search',
+    component: () => import('@/pages/SearchPage.vue'),
+    meta: { title: '搜索' }
   }
 ]
 
@@ -46,7 +64,14 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   document.title = `${to.meta.title || 'FamilyVault'} · 家史馆`
-  next()
+
+  // 检查是否首次访问
+  const welcomeShown = localStorage.getItem('welcomeShown')
+  if (!welcomeShown && to.path !== '/welcome') {
+    next('/welcome')
+  } else {
+    next()
+  }
 })
 
 export default router

@@ -1,11 +1,17 @@
 <template>
   <div class="interview-page">
     <!-- 顶部导航 -->
-    <van-nav-bar title="AI 采访" left-arrow @click-left="$router.back()" />
+    <van-nav-bar title="采访" left-arrow @click-left="$router.back()">
+      <template #right>
+        <van-icon name="clock-o" size="20" @click="showHistory = true" />
+      </template>
+    </van-nav-bar>
 
     <!-- 采访对象选择 -->
     <div v-if="!sessionId" class="setup-section">
-      <div class="section-title">选择采访对象</div>
+      <div class="section-header">
+        <div class="section-title">选择采访对象</div>
+      </div>
 
       <!-- 已有采访对象列表 -->
       <div v-if="interviewees.length > 0" class="interviewee-list">
@@ -16,16 +22,18 @@
           :class="{ active: selectedInterviewee?.id === person.id }"
           @click="selectInterviewee(person)"
         >
-          <van-image
-            round
-            width="50"
-            height="50"
-            :src="person.avatar || defaultAvatar"
-          />
+          <div class="avatar" :style="{ background: person.color }">
+            <span class="avatar-text">{{ person.name.charAt(0) }}</span>
+          </div>
           <div class="info">
             <div class="name">{{ person.name }}</div>
-            <div class="meta">{{ person.age }}岁 · {{ person.hometown }}</div>
+            <div class="meta">
+              <span v-if="person.age">{{ person.age }}岁</span>
+              <span v-if="person.hometown"> · {{ person.hometown }}</span>
+              <span v-if="person.sessions_count"> · {{ person.sessions_count }}次</span>
+            </div>
           </div>
+          <van-icon v-if="selectedInterviewee?.id === person.id" name="success" color="#10b981" size="20" />
         </div>
       </div>
 
@@ -63,7 +71,7 @@
           </van-cell-group>
           <div style="margin: 16px">
             <van-button round block type="primary" native-type="submit">
-              添加并开始采访
+              添加
             </van-button>
           </div>
         </van-form>
@@ -76,6 +84,7 @@
           block
           round
           size="large"
+          class="start-btn"
           @click="startInterview"
         >
           开始采访 {{ selectedInterviewee.name }}
@@ -87,22 +96,19 @@
     <template v-else>
       <!-- 采访对象信息 -->
       <div class="interviewee-info">
-        <van-image
-          round
-          width="50"
-          height="50"
-          :src="selectedInterviewee.avatar || defaultAvatar"
-        />
+        <div class="avatar" :style="{ background: selectedInterviewee.color }">
+          <span class="avatar-text">{{ selectedInterviewee.name.charAt(0) }}</span>
+        </div>
         <div class="info-content">
           <div class="name">{{ selectedInterviewee.name }}</div>
           <div class="meta">
             {{ selectedInterviewee.age }}岁 · {{ selectedInterviewee.hometown }}
             <span v-if="recordingDuration" class="duration">
-              录音 {{ formatDuration(recordingDuration) }}
+              {{ formatDuration(recordingDuration) }}
             </span>
           </div>
         </div>
-        <van-button size="small" @click="endInterview">结束</van-button>
+        <van-button size="small" round @click="endInterview">结束</van-button>
       </div>
 
       <!-- 对话区域 -->
@@ -112,22 +118,15 @@
           :key="index"
           :class="['message-item', message.role]"
         >
-          <div class="message-avatar">
-            <van-image
-              round
-              width="36"
-              height="36"
-              :src="message.role === 'ai' ? aiAvatar : userAvatar"
-            />
-          </div>
+          <div v-if="message.role === 'ai'" class="message-avatar ai-avatar">AI</div>
           <div class="message-content">
-            <div class="message-text">{{ message.text }}</div>
+            <div class="message-bubble" :class="message.role">{{ message.text }}</div>
             <div class="message-time">{{ message.time }}</div>
           </div>
         </div>
 
         <!-- 录音中提示 -->
-        <div v-if="isRecording" class="recording-indicator">
+        <div v-if="isRecording" class="recording-indicator" @click="stopRecording">
           <div class="recording-wave">
             <span></span>
             <span></span>
@@ -136,26 +135,50 @@
             <span></span>
           </div>
           <span>正在录音... 点击停止</span>
+          <div v-if="transcribedText" class="transcription-preview">
+            {{ transcribedText }}
+          </div>
         </div>
 
         <!-- 转文字中提示 -->
         <div v-if="isTranscribing" class="transcribing-indicator">
-          <van-loading type="spinner" size="20" />
+          <van-loading type="spinner" size="20" color="#007aff" />
           <span>正在转文字...</span>
         </div>
       </div>
 
       <!-- 底部操作区 -->
       <div class="action-bar">
+        <!-- 手动输入框 -->
+        <div v-if="!isRecording && !isTranscribing" class="manual-input">
+          <van-field
+            v-model="manualInputText"
+            type="textarea"
+            rows="2"
+            placeholder="或手动输入文字..."
+            autosize
+          />
+          <van-button
+            type="primary"
+            size="small"
+            :disabled="!manualInputText.trim()"
+            @click="sendManualInput"
+            style="margin-top: 8px"
+          >
+            发送
+          </van-button>
+        </div>
+
         <van-button
           v-if="!isRecording && !isTranscribing"
           type="primary"
           block
           round
           size="large"
+          class="record-btn"
           @click="startRecording"
         >
-          <van-icon name="audio" size="18" /> 按住录音
+          <van-icon name="audio" size="18" style="margin-right: 6px" /> 点击录音
         </van-button>
 
         <van-button
@@ -166,7 +189,7 @@
           size="large"
           @click="stopRecording"
         >
-          <van-icon name="stop-circle-o" size="18" /> 停止录音
+          <van-icon name="stop-circle-o" size="18" style="margin-right: 6px" /> 停止录音
         </van-button>
 
         <van-button
@@ -176,21 +199,91 @@
           round
           size="large"
           loading
-          loading-text="转文字中..."
+          loading-text="处理中..."
         />
       </div>
     </template>
+
+    <!-- 采访历史弹窗 -->
+    <van-popup v-model:show="showHistory" position="bottom" round :style="{ height: '75%' }">
+      <div class="history-panel">
+        <div class="history-header">
+          <h3>采访记录</h3>
+          <van-icon name="cross" size="20" @click="showHistory = false" />
+        </div>
+        <div class="history-list">
+          <div v-if="interviewSessions.length === 0" class="empty-history">
+            <van-icon name="chat-o" size="48" color="#ddd" />
+            <p>暂无采访记录</p>
+          </div>
+          <div
+            v-for="session in interviewSessions"
+            :key="session.id"
+            class="history-card"
+            @click="viewSession(session)"
+          >
+            <div class="history-avatar" :style="{ background: session.interviewee.color }">
+              <span class="avatar-text">{{ session.interviewee.name.charAt(0) }}</span>
+            </div>
+            <div class="history-info">
+              <div class="history-name">{{ session.interviewee.name }}</div>
+              <div class="history-date">{{ session.date }}</div>
+              <div class="history-stats">
+                {{ session.messages.length }}条对话 · {{ formatDuration(session.duration) }}
+              </div>
+            </div>
+            <van-icon name="arrow" color="#999" />
+          </div>
+        </div>
+      </div>
+    </van-popup>
+
+    <!-- 查看历史详情弹窗 -->
+    <van-popup v-model:show="showSessionDetail" position="bottom" round :style="{ height: '85%' }">
+      <div class="session-detail" v-if="currentSession">
+        <div class="detail-header">
+          <van-icon name="arrow-left" size="20" @click="showSessionDetail = false" />
+          <span>与{{ currentSession.interviewee.name }}的采访</span>
+          <van-icon name="share-o" size="20" @click="shareSession" />
+        </div>
+        <div class="detail-meta">
+          <span>{{ currentSession.date }}</span>
+          <span>{{ formatDuration(currentSession.duration) }}</span>
+          <span>{{ currentSession.messages.length }}条对话</span>
+        </div>
+        <div class="detail-messages">
+          <div
+            v-for="(msg, idx) in currentSession.messages"
+            :key="idx"
+            :class="['message-item', msg.role]"
+          >
+            <div class="message-avatar" :style="{ background: msg.role === 'ai' ? '#007aff' : '#07c160' }">
+              <span class="avatar-text-small">{{ msg.role === 'ai' ? 'AI' : currentSession.interviewee.name.charAt(0) }}</span>
+            </div>
+            <div class="message-content">
+              <div class="message-bubble" :class="msg.role">{{ msg.text }}</div>
+              <div class="message-time">{{ msg.time }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="detail-actions">
+          <van-button type="primary" round block @click="exportSession">
+            <van-icon name="down" style="margin-right: 6px" /> 导出采访记录
+          </van-button>
+        </div>
+      </div>
+    </van-popup>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { showToast, showLoadingToast, closeToast } from 'vant'
-import audioRecorder from '@/utils/recorder'
-import { interviewApi, uploadApi } from '@/services/api'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { showToast } from 'vant'
+import speechRecognizer from '@/utils/speech'
+import storage, { STORAGE_KEYS } from '@/utils/storage'
 
-// 数据
-const interviewees = ref([])
+// 从 localStorage 加载采访对象
+const interviewees = ref(storage.get(STORAGE_KEYS.INTERVIEWEES, []))
 const selectedInterviewee = ref(null)
 const sessionId = ref(null)
 const messages = ref([])
@@ -198,6 +291,16 @@ const isRecording = ref(false)
 const isTranscribing = ref(false)
 const recordingDuration = ref(0)
 const chatArea = ref(null)
+const transcribedText = ref('')
+const manualInputText = ref('')
+const showHistory = ref(false)
+const showSessionDetail = ref(false)
+const currentSession = ref(null)
+let durationTimer = null
+let currentSessionId = null
+
+// 从 localStorage 加载采访历史
+const interviewSessions = ref(storage.get(STORAGE_KEYS.INTERVIEW_SESSIONS, []))
 
 // 新采访对象表单
 const newInterviewee = ref({
@@ -207,10 +310,98 @@ const newInterviewee = ref({
   relationship: ''
 })
 
-// 头像
-const defaultAvatar = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
-const aiAvatar = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
-const userAvatar = 'https://fastly.jsdelivr.net/npm/@vant/assets/cat.jpeg'
+// AI 话题库 - 通用 + 按关系分类
+const topicPool = {
+  general: [
+    '您小时候最开心的事情是什么？',
+    '您还记得小时候住在哪里吗？那个地方现在变成什么样了？',
+    '您年轻时候有什么梦想？后来实现了吗？',
+    '您这辈子最骄傲的事情是什么？',
+    '您经历过最艰难的时期是什么时候？怎么熬过来的？',
+    '您有什么人生格言或者教训想留给后辈的？',
+    '您小时候过年都有什么习俗？',
+    '您觉得这些年变化最大的是什么？',
+    '您最珍惜的一段回忆是什么？',
+    '如果能回到过去，您最想回到哪个时刻？'
+  ],
+  '爷爷': [
+    '爷爷，您小时候过年都吃什么？有没有什么特别的年菜？',
+    '您还记得太爷爷年轻时候是做什么的吗？',
+    '您小时候上学吗？那时候的学校是什么样的？',
+    '您和奶奶是怎么认识的？当时是什么情况？',
+    '您年轻时最拿手的本事是什么？',
+    '您经历过的最难忘的一件事是什么？'
+  ],
+  '奶奶': [
+    '奶奶，您年轻时候最喜欢做什么？',
+    '您有什么拿手菜可以教教我吗？具体怎么做的？',
+    '您小时候家里是什么样的条件？',
+    '您和爷爷是怎么走到一起的？',
+    '您带大几个孩子？那时候养孩子有什么难处？',
+    '您对我们这些晚辈有什么想说的吗？'
+  ],
+  '爸爸': [
+    '爸，您小时候最调皮的事是什么？',
+    '您年轻时候有什么梦想？实现了吗？',
+    '您和妈妈是怎么认识的？',
+    '您工作中最难忘的经历是什么？',
+    '您对我有什么期望吗？',
+    '您觉得咱们家最大的变化是什么？'
+  ],
+  '妈妈': [
+    '妈，您小时候最喜欢做什么？',
+    '您和爸爸是怎么认识的？',
+    '您觉得养我最大的挑战是什么？',
+    '您有什么特别的家传菜吗？',
+    '您年轻时候有什么遗憾的事吗？',
+    '您最希望我成为什么样的人？'
+  ]
+}
+
+// 根据用户输入生成回应 - 更自然的对话风格
+const generateResponse = (userText) => {
+  const text = userText
+
+  // 更自然的回应，带语气词和情感
+  const responseMap = [
+    { keywords: ['相亲', '介绍', '媒人'], responses: ['哦，相亲认识的啊', '那时候相亲挺正式的吧', '原来是相亲认识的'] },
+    { keywords: ['结婚', '婚礼', '办酒'], responses: ['那时候婚礼肯定很热闹', '办酒席一定很忙吧', '结婚那天肯定很难忘'] },
+    { keywords: ['上学', '读书', '学校'], responses: ['那时候上学不容易啊', '读书条件艰苦吧', '能上学就很好了'] },
+    { keywords: ['工作', '上班', '干活'], responses: ['那时候工作可没现在轻松', '肯定吃了不少苦', '干活累吧'] },
+    { keywords: ['孩子', '养大', '带大'], responses: ['带孩子真不容易', '几个孩子都带大了，厉害', '养孩子辛苦啊'] },
+    { keywords: ['困难', '艰难', '苦'], responses: ['那段日子确实难', '挺过来就不容易', '苦日子都过去了'] },
+    { keywords: ['开心', '高兴', '快乐'], responses: ['那挺好的', '听起来不错', '开心就好'] },
+    { keywords: ['菜', '做饭', '拿手'], responses: ['听着就好吃', '怎么做的啊', '教教我呗'] },
+    { keywords: ['过年', '春节'], responses: ['过年最热闹了', '那时候过年有意思', '年味浓吧'] },
+    { keywords: ['爷爷', '奶奶', '祖'], responses: ['老一辈的故事啊', '他们那时候不容易', '老人家故事多'] },
+    { keywords: ['爸爸', '妈妈', '父', '母'], responses: ['父母那辈人辛苦', '他们对你好吗', '跟爸妈关系怎么样'] },
+    { keywords: ['变化', '以前', '现在'], responses: ['变化确实大', '现在跟以前不一样了', '这些年改变得多'] }
+  ]
+
+  // 查找匹配
+  for (const item of responseMap) {
+    if (item.keywords.some(k => text.includes(k))) {
+      const responses = item.responses
+      return responses[Math.floor(Math.random() * responses.length)]
+    }
+  }
+
+  // 更自然的默认回应
+  const defaults = [
+    '嗯，然后呢',
+    '后来怎么样了',
+    '哦哦',
+    '这样啊',
+    '嗯嗯',
+    '明白了',
+    '继续说',
+    '还有吗',
+    '真的啊',
+    '那挺好的'
+  ]
+
+  return defaults[Math.floor(Math.random() * defaults.length)]
+}
 
 // 格式化时长
 const formatDuration = (seconds) => {
@@ -219,153 +410,330 @@ const formatDuration = (seconds) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
+// 保存采访对象列表
+const saveInterviewees = () => {
+  storage.set(STORAGE_KEYS.INTERVIEWEES, interviewees.value)
+}
+
 // 选择采访对象
 const selectInterviewee = (person) => {
   selectedInterviewee.value = person
 }
 
 // 添加采访对象
-const addInterviewee = async () => {
-  try {
-    const res = await interviewApi.createInterviewee({
-      name: newInterviewee.value.name,
-      age: parseInt(newInterviewee.value.age) || null,
-      hometown: newInterviewee.value.hometown,
-      relationship: newInterviewee.value.relationship
-    })
-
-    if (res.success) {
-      interviewees.value.push(res.data)
-      selectedInterviewee.value = res.data
-      showToast('添加成功')
-
-      // 清空表单
-      newInterviewee.value = {
-        name: '',
-        age: '',
-        hometown: '',
-        relationship: ''
-      }
-    }
-  } catch (error) {
-    showToast('添加失败：' + error.message)
+const addInterviewee = () => {
+  if (!newInterviewee.value.name) {
+    showToast('请输入称呼')
+    return
   }
+
+  const colors = [
+    '#007aff', '#5856d6', '#ff9500', '#ff3b30',
+    '#34c759', '#af52de', '#ff2d55', '#00c7be'
+  ]
+
+  const name = newInterviewee.value.name
+
+  const newPerson = {
+    id: Date.now(),
+    name: name,
+    age: parseInt(newInterviewee.value.age) || null,
+    hometown: newInterviewee.value.hometown,
+    relationship: newInterviewee.value.relationship,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    sessions_count: 0,
+    created_at: new Date().toISOString()
+  }
+
+  interviewees.value.push(newPerson)
+  saveInterviewees()
+  selectedInterviewee.value = newPerson
+  showToast('添加成功')
+
+  newInterviewee.value = { name: '', age: '', hometown: '', relationship: '' }
+}
+
+// 获取下一个话题
+const getNextTopic = () => {
+  const name = selectedInterviewee.value?.name || ''
+  const topics = topicPool[name] || topicPool.general
+
+  const askedTopics = messages.value
+    .filter(m => m.role === 'ai')
+    .map(m => m.text)
+
+  const unasked = topics.filter(t => !askedTopics.some(a => a.includes(t) || t.includes(a)))
+
+  if (unasked.length > 0) {
+    return unasked[Math.floor(Math.random() * unasked.length)]
+  }
+  const generalUnasked = topicPool.general.filter(t => !askedTopics.some(a => a.includes(t)))
+  return generalUnasked.length > 0
+    ? generalUnasked[Math.floor(Math.random() * generalUnasked.length)]
+    : '您还有什么想分享的故事吗？'
 }
 
 // 开始采访
-const startInterview = async () => {
+const startInterview = () => {
   if (!selectedInterviewee.value) {
     showToast('请先选择采访对象')
     return
   }
 
-  try {
-    showLoadingToast({
-      message: '正在开始采访...',
-      forbidClick: true
-    })
+  currentSessionId = Date.now()
+  sessionId.value = currentSessionId
+  const firstTopic = getNextTopic()
 
-    const res = await interviewApi.startSession(selectedInterviewee.value.id)
-
-    if (res.success) {
-      sessionId.value = res.data.sessionId
-      messages.value = [
-        {
-          role: 'ai',
-          text: res.data.firstTopic,
-          time: getCurrentTime()
-        }
-      ]
-      closeToast()
-      showToast('采访已开始')
+  messages.value = [
+    {
+      role: 'ai',
+      text: `${selectedInterviewee.value.name}您好！我是 FamilyVault 的 AI 采访助手。今天我们来聊聊您的故事，请您慢慢讲，不着急。`,
+      time: getCurrentTime()
+    },
+    {
+      role: 'ai',
+      text: firstTopic,
+      time: getCurrentTime()
     }
-  } catch (error) {
-    closeToast()
-    showToast('开始采访失败：' + error.message)
-  }
+  ]
+
+  showToast('采访已开始')
+  scrollToBottom()
 }
 
 // 开始录音
-const startRecording = async () => {
-  try {
-    await audioRecorder.start()
-    isRecording.value = true
-    recordingDuration.value = 0
+const startRecording = () => {
+  // 检查浏览器支持
+  if (!speechRecognizer.recognition) {
+    showToast('浏览器不支持语音，请用手动输入或换 Chrome/Edge')
+    return
+  }
 
-    // 监听时长更新
-    audioRecorder.onDurationUpdate = (duration) => {
-      recordingDuration.value = duration
+  isRecording.value = true
+  recordingDuration.value = 0
+  transcribedText.value = ''
+
+  // 设置语音识别回调
+  speechRecognizer.onStart = () => {
+    console.log('语音识别已启动')
+    showToast('开始录音，请说话...')
+  }
+
+  speechRecognizer.onResult = (result) => {
+    // 更新实时转写文字（显示完整内容：最终+中间）
+    transcribedText.value = result.full || result.final || result.interim
+    console.log('转写结果:', result)
+  }
+
+  speechRecognizer.onError = (error, message) => {
+    console.error('语音识别错误:', error, message)
+    let errorMsg = '语音识别失败'
+    if (error === 'not-allowed') {
+      errorMsg = '请允许麦克风权限'
+    } else if (error === 'no-speech') {
+      errorMsg = '未检测到语音，请重试'
+    } else if (error === 'network') {
+      errorMsg = '网络错误，请检查网络'
+    } else if (error === 'aborted') {
+      errorMsg = '录音已取消'
+    } else if (error === 'service-not-allowed') {
+      errorMsg = '浏览器不支持，请用手动输入或换 Chrome'
     }
+    showToast(errorMsg)
+    isRecording.value = false
+  }
 
-    showToast('开始录音')
-  } catch (error) {
-    showToast(error.message || '录音启动失败')
+  speechRecognizer.onEnd = (finalTranscript) => {
+    console.log('语音识别结束，最终文本:', finalTranscript)
+    isRecording.value = false
+    // 确保最终文本被保存
+    if (finalTranscript && !transcribedText.value) {
+      transcribedText.value = finalTranscript
+    }
+  }
+
+  // 开始录音计时
+  durationTimer = setInterval(() => {
+    recordingDuration.value++
+  }, 1000)
+
+  // 启动语音识别
+  try {
+    speechRecognizer.start()
+  } catch (err) {
+    console.error('启动语音识别失败:', err)
+    showToast('启动语音识别失败：' + err.message)
+    isRecording.value = false
   }
 }
 
 // 停止录音
-const stopRecording = async () => {
-  try {
-    isRecording.value = false
-    isTranscribing.value = true
+const stopRecording = () => {
+  if (!isRecording.value) return
 
-    // 停止录音并获取音频
-    const { blob, duration } = await audioRecorder.stop()
+  isRecording.value = false
+  isTranscribing.value = true
 
-    // 转换为文件
-    const audioFile = audioRecorder.blobToFile(blob, `interview_${Date.now()}.webm`)
+  if (durationTimer) {
+    clearInterval(durationTimer)
+    durationTimer = null
+  }
 
-    // 上传音频并转文字
-    const res = await uploadApi.uploadAudio(audioFile, duration)
+  // 停止语音识别并获取最终文本
+  const finalText = speechRecognizer.stop()
 
-    if (res.success) {
-      // 添加用户消息
-      const userMessage = {
-        role: 'user',
-        text: res.data.transcription,
-        time: getCurrentTime()
-      }
-      messages.value.push(userMessage)
+  // 使用转写的文字
+  setTimeout(() => {
+    // 优先使用最终文本，其次使用实时转写文本
+    const userText = finalText || transcribedText.value || ''
 
-      // 发送到后端获取 AI 回复
-      const replyRes = await interviewApi.sendMessage(sessionId.value, {
-        text: res.data.transcription,
-        audioUrl: res.data.audioUrl,
-        duration: duration
-      })
-
-      if (replyRes.success) {
-        // 添加 AI 回复
-        setTimeout(() => {
-          messages.value.push({
-            role: 'ai',
-            text: replyRes.data.aiReply,
-            time: getCurrentTime()
-          })
-          scrollToBottom()
-        }, 500)
-      }
+    if (!userText.trim()) {
+      showToast('未识别到语音内容，请重试')
+      isTranscribing.value = false
+      return
     }
 
-    recordingDuration.value = 0
-  } catch (error) {
-    showToast('录音处理失败：' + error.message)
-  } finally {
+    messages.value.push({
+      role: 'user',
+      text: userText,
+      time: getCurrentTime()
+    })
+
     isTranscribing.value = false
-    scrollToBottom()
-  }
+
+    // AI 回复
+    setTimeout(() => {
+      const userText = messages.value[messages.value.length - 1].text
+      const response = generateResponse(userText)
+      const nextTopic = getNextTopic()
+
+      messages.value.push({
+        role: 'ai',
+        text: `${response}\n\n${nextTopic}`,
+        time: getCurrentTime()
+      })
+
+      recordingDuration.value = 0
+      scrollToBottom()
+    }, 800)
+  }, 1500)
 }
 
-// 结束采访
-const endInterview = async () => {
-  try {
-    await interviewApi.endSession(sessionId.value)
-    showToast('采访已结束')
+// 发送手动输入的文字
+const sendManualInput = () => {
+  if (!manualInputText.value.trim()) return
+
+  messages.value.push({
+    role: 'user',
+    text: manualInputText.value,
+    time: getCurrentTime()
+  })
+
+  const userInput = manualInputText.value
+  manualInputText.value = ''
+  scrollToBottom()
+
+  // AI 回复
+  setTimeout(() => {
+    const response = generateResponse(userInput)
+    const nextTopic = getNextTopic()
+
+    messages.value.push({
+      role: 'ai',
+      text: response + '\n\n' + nextTopic,
+      time: getCurrentTime()
+    })
+    scrollToBottom()
+  }, 1000)
+}
+
+// 结束采访 - 保存到 localStorage
+const endInterview = () => {
+  if (messages.value.length <= 2) {
     sessionId.value = null
     messages.value = []
     recordingDuration.value = 0
-  } catch (error) {
-    showToast('结束采访失败')
+    currentSessionId = null
+    showToast('采访已取消')
+    return
+  }
+
+  // 创建采访记录
+  const session = {
+    id: currentSessionId,
+    interviewee: { ...selectedInterviewee.value },
+    date: new Date().toLocaleString('zh-CN'),
+    timestamp: Date.now(),
+    duration: recordingDuration.value,
+    messages: [...messages.value]
+  }
+
+  // 保存到历史列表
+  interviewSessions.value.unshift(session)
+  storage.set(STORAGE_KEYS.INTERVIEW_SESSIONS, interviewSessions.value)
+
+  // 更新采访对象的采访次数
+  const person = interviewees.value.find(p => p.id === selectedInterviewee.value.id)
+  if (person) {
+    person.sessions_count = (person.sessions_count || 0) + 1
+    saveInterviewees()
+  }
+
+  // 重置状态
+  sessionId.value = null
+  messages.value = []
+  recordingDuration.value = 0
+  currentSessionId = null
+  transcribedText.value = ''
+
+  showToast('采访已保存')
+}
+
+// 查看历史会话
+const viewSession = (session) => {
+  currentSession.value = session
+  showHistory.value = false
+  showSessionDetail.value = true
+}
+
+// 导出采访记录
+const exportSession = () => {
+  if (!currentSession.value) return
+
+  const session = currentSession.value
+  let text = `采访记录：${session.interviewee.name}\n`
+  text += `时间：${session.date}\n`
+  text += `时长：${formatDuration(session.duration)}\n`
+  text += `${'='.repeat(40)}\n\n`
+
+  session.messages.forEach(msg => {
+    const role = msg.role === 'ai' ? 'AI助手' : session.interviewee.name
+    text += `[${msg.time}] ${role}：${msg.text}\n\n`
+  })
+
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `采访记录_${session.interviewee.name}_${session.date.replace(/[/: ]/g, '-')}.txt`
+  a.click()
+  URL.revokeObjectURL(url)
+
+  showToast('导出成功')
+}
+
+// 分享采访记录
+const shareSession = () => {
+  if (!currentSession.value) return
+  const session = currentSession.value
+
+  const text = `我刚完成了对${session.interviewee.name}的采访，记录了${session.messages.length}条对话，快来 FamilyVault 看看！`
+
+  if (navigator.share) {
+    navigator.share({ title: 'FamilyVault 采访记录', text })
+  } else {
+    navigator.clipboard.writeText(text)
+    showToast('已复制到剪贴板')
   }
 }
 
@@ -384,26 +752,50 @@ const scrollToBottom = () => {
   })
 }
 
-// 加载采访对象列表
-const loadInterviewees = async () => {
-  try {
-    const res = await interviewApi.getInterviewees()
-    if (res.success) {
-      interviewees.value = res.data
-    }
-  } catch (error) {
-    console.error('加载采访对象失败:', error)
-  }
-}
-
-// 生命周期
 onMounted(() => {
-  loadInterviewees()
+  // 初始化默认采访对象（如果是首次使用且为空）
+  if (interviewees.value.length === 0) {
+    const defaults = [
+      {
+        id: 1,
+        name: '爷爷',
+        age: 74,
+        hometown: '湖北武汉',
+        relationship: '祖父',
+        color: '#007aff',
+        sessions_count: 0,
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 2,
+        name: '奶奶',
+        age: 72,
+        hometown: '四川成都',
+        relationship: '祖母',
+        color: '#af52de',
+        sessions_count: 0,
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 3,
+        name: '爸爸',
+        age: 46,
+        hometown: '湖北武汉',
+        relationship: '父亲',
+        color: '#5856d6',
+        sessions_count: 0,
+        created_at: new Date().toISOString()
+      }
+    ]
+    interviewees.value = defaults
+    saveInterviewees()
+  }
 })
 
 onUnmounted(() => {
-  // 清理录音器
-  audioRecorder.destroy()
+  if (durationTimer) {
+    clearInterval(durationTimer)
+  }
 })
 </script>
 
@@ -412,66 +804,96 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f7f8fa;
+  background: #fafbfc;
 }
 
 /* 设置区域 */
 .setup-section {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 20px 16px;
+}
+
+.section-header {
+  margin-bottom: 16px;
 }
 
 .section-title {
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 12px;
-  padding-left: 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  letter-spacing: -0.3px;
 }
 
 .section-subtitle {
-  font-size: 14px;
-  color: #666;
-  margin: 16px 0 12px 4px;
+  font-size: 13px;
+  color: #8e8e93;
+  margin: 24px 0 12px 0;
 }
 
 .interviewee-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 16px;
 }
 
 .interviewee-card {
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 14px 16px;
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 0.2s;
-  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  border: 1.5px solid transparent;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .interviewee-card.active {
-  border-color: #07c160;
-  background: #f0fff5;
+  border-color: #007aff;
+  background: #f0f7ff;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.1);
+}
+
+.interviewee-card:active {
+  transform: scale(0.98);
+  background: #f5f5f7;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.avatar-text {
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 .interviewee-card .info {
-  margin-left: 12px;
+  margin-left: 14px;
   flex: 1;
+  min-width: 0;
 }
 
 .interviewee-card .name {
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 3px;
 }
 
 .interviewee-card .meta {
   font-size: 12px;
-  color: #999;
-  margin-top: 4px;
+  color: #8e8e93;
 }
 
 .add-section {
@@ -479,51 +901,71 @@ onUnmounted(() => {
 }
 
 .start-section {
-  margin-top: 16px;
+  margin-top: 20px;
+  padding-bottom: 20px;
+}
+
+.start-btn {
+  height: 50px;
+  font-size: 16px;
+  font-weight: 600;
+  background: #007aff;
+  border: none;
+  border-radius: 14px;
+  letter-spacing: 0.3px;
 }
 
 /* 采访界面 */
 .interviewee-info {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
+  padding: 14px 16px;
   background: white;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .info-content {
-  margin-left: 12px;
+  margin-left: 14px;
   flex: 1;
 }
 
 .info-content .name {
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 3px;
 }
 
 .info-content .meta {
   font-size: 12px;
-  color: #999;
-  margin-top: 2px;
+  color: #8e8e93;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .info-content .duration {
-  color: #ee0a24;
-  font-weight: 500;
+  color: #ff3b30;
+  font-weight: 600;
+  font-size: 12px;
 }
 
 .chat-area {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+  background: #fafbfc;
 }
 
 .message-item {
   display: flex;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .message-item.ai {
@@ -535,11 +977,27 @@ onUnmounted(() => {
 }
 
 .message-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
+.ai-avatar {
+  background: #007aff;
+}
+
+.avatar-text-small {
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .message-content {
-  max-width: 70%;
+  max-width: 75%;
   margin: 0 10px;
 }
 
@@ -547,29 +1005,35 @@ onUnmounted(() => {
   text-align: right;
 }
 
-.message-text {
+.message-bubble {
   display: inline-block;
-  padding: 10px 14px;
-  border-radius: 12px;
-  font-size: 14px;
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 15px;
   line-height: 1.5;
   word-break: break-word;
+  text-align: left;
+  letter-spacing: 0.2px;
 }
 
-.message-item.ai .message-text {
+.message-bubble.ai {
   background: white;
-  color: #333;
+  color: #1a1a1a;
+  border-bottom-left-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
-.message-item.user .message-text {
-  background: #07c160;
+.message-bubble.user {
+  background: #007aff;
   color: white;
+  border-bottom-right-radius: 6px;
 }
 
 .message-time {
   font-size: 11px;
-  color: #999;
-  margin-top: 4px;
+  color: #c7c7cc;
+  margin-top: 5px;
+  padding: 0 4px;
 }
 
 /* 录音指示器 */
@@ -578,17 +1042,20 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 12px 20px;
-  background: rgba(238, 10, 36, 0.1);
-  border-radius: 20px;
+  padding: 14px 24px;
+  background: white;
+  border-radius: 24px;
   margin: 16px auto;
   width: fit-content;
   cursor: pointer;
+  box-shadow: 0 2px 12px rgba(238, 10, 36, 0.15);
+  border: 1px solid rgba(238, 10, 36, 0.2);
 }
 
 .recording-indicator span {
   font-size: 13px;
   color: #ee0a24;
+  font-weight: 500;
 }
 
 .recording-wave {
@@ -617,16 +1084,30 @@ onUnmounted(() => {
   50% { transform: scaleY(1); }
 }
 
+.transcription-preview {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #333;
+  max-width: 280px;
+  text-align: left;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
 .transcribing-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.9);
+  padding: 12px 20px;
+  background: white;
   border-radius: 20px;
   margin: 16px auto;
   width: fit-content;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .transcribing-indicator span {
@@ -635,8 +1116,163 @@ onUnmounted(() => {
 }
 
 .action-bar {
-  padding: 12px 16px;
+  padding: 12px 16px 16px;
   background: white;
-  border-top: 1px solid #eee;
+  border-top: 1px solid #f0f0f0;
+}
+
+.record-btn {
+  background: #007aff;
+  border: none;
+  height: 48px;
+  font-size: 15px;
+  font-weight: 500;
+  margin-top: 10px;
+}
+
+.manual-input {
+  margin-bottom: 10px;
+}
+
+.manual-input :deep(.van-field) {
+  background: #f7f8fa;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.manual-input :deep(.van-field__control) {
+  font-size: 14px;
+}
+
+/* 采访历史 */
+.history-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.history-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+}
+
+.empty-history {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.empty-history p {
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.history-card {
+  display: flex;
+  align-items: center;
+  padding: 14px;
+  background: white;
+  border-radius: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s;
+}
+
+.history-card:active {
+  transform: scale(0.98);
+  background: #f8f9ff;
+}
+
+.history-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.history-avatar .avatar-text {
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.history-info {
+  margin-left: 12px;
+  flex: 1;
+}
+
+.history-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.history-date {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.history-stats {
+  font-size: 11px;
+  color: #bbb;
+  margin-top: 3px;
+}
+
+/* 历史详情 */
+.session-detail {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.detail-meta {
+  display: flex;
+  gap: 16px;
+  padding: 12px 20px;
+  font-size: 12px;
+  color: #999;
+  background: #f8f9fa;
+}
+
+.detail-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.detail-actions {
+  padding: 12px 16px 24px;
+  border-top: 1px solid #f0f0f0;
 }
 </style>

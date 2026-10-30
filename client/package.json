@@ -9,19 +9,20 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "vue": "^3.4.21",
-    "vue-router": "^4.3.0",
-    "pinia": "^2.1.7",
-    "vant": "^4.8.4",
+    "@vant/use": "^1.6.0",
     "axios": "^1.6.7",
     "d3": "^7.8.5",
     "leaflet": "^1.9.4",
-    "@vant/use": "^1.6.0"
+    "pinia": "^2.1.7",
+    "vant": "^4.8.4",
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0"
   },
   "devDependencies": {
+    "@vant/auto-import-resolver": "^1.2.1",
     "@vitejs/plugin-vue": "^5.0.4",
-    "vite": "^5.1.4",
     "unplugin-vue-components": "^0.26.0",
-    "@vant/auto-import-resolver": "^1.2.1"
+    "vite": "^5.1.4",
+    "vite-plugin-pwa": "^2.0.0"
   }
 }
