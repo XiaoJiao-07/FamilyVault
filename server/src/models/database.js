@@ -223,6 +223,20 @@ export async function initDatabase() {
       FOREIGN KEY (family_id) REFERENCES families(id)
     );
 
+    -- 媒体文件：登记归属家庭，禁止匿名访问
+    CREATE TABLE IF NOT EXISTS media_files (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      filename TEXT NOT NULL UNIQUE,
+      original_name TEXT,
+      mime_type TEXT,
+      size INTEGER,
+      kind TEXT NOT NULL DEFAULT 'image',
+      family_id INTEGER NOT NULL,
+      uploaded_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (family_id) REFERENCES families(id)
+    );
+
     -- 创建索引
     CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
     CREATE INDEX IF NOT EXISTS idx_relationships_from ON family_relationships(from_member_id);
@@ -233,6 +247,7 @@ export async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_memberships_family ON family_memberships(family_id);
     CREATE INDEX IF NOT EXISTS idx_memberships_user ON family_memberships(user_id);
     CREATE INDEX IF NOT EXISTS idx_family_data_family ON family_data(family_id);
+    CREATE INDEX IF NOT EXISTS idx_media_family ON media_files(family_id);
   `)
 
   // 种子数据：保证全新部署也能立即注册/登录，避免「没有邀请码也没有管理员」的死锁

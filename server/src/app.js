@@ -31,8 +31,7 @@ app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// Static files
-app.use('/uploads', express.static(path.join(__dirname, '../../data/uploads')))
+// 媒体文件不再公开暴露：统一走 /api/upload 的签名校验访问（见 routes/upload.js）
 
 // Initialize database
 await initDatabase()
@@ -60,7 +59,7 @@ const clientDist = path.join(__dirname, '../../client/dist')
 if (fs.existsSync(path.join(clientDist, 'index.html'))) {
   app.use(express.static(clientDist))
   // SPA fallback：非 /api 路由一律回 index.html
-  app.get(/^\/(?!api\/).*/, (req, res) => {
+  app.get(/^\/(?!api\/|uploads\/).*/, (req, res) => {
     res.sendFile(path.join(clientDist, 'index.html'))
   })
   console.log('📦 已启用前端静态托管：', clientDist)

@@ -192,3 +192,70 @@ export const familyAPI = {
     }
   }
 }
+
+// AI 采访（服务端生成话题，未配置大模型时返回 demo 标记）
+export const interviewAPI = {
+  async status() {
+    try {
+      const data = await request.get('/interview/ai-status')
+      return { success: true, data: data.data }
+    } catch (error) {
+      return { success: false, data: { mode: 'demo' }, message: errorMessage(error, '获取 AI 状态失败') }
+    }
+  },
+
+  async opening(interviewee) {
+    try {
+      const data = await request.post('/interview/opening', { interviewee })
+      return { success: true, data: data.data }
+    } catch (error) {
+      return { success: false, message: errorMessage(error, 'AI 暂时不可用') }
+    }
+  },
+
+  async turn({ interviewee, history, userText }) {
+    try {
+      const data = await request.post('/interview/turn', { interviewee, history, userText })
+      return { success: true, data: data.data }
+    } catch (error) {
+      return { success: false, message: errorMessage(error, 'AI 暂时不可用') }
+    }
+  }
+}
+
+// 媒体上传（家庭内可见，返回带签名的临时链接）
+export const mediaAPI = {
+  async uploadImage(file) {
+    try {
+      const form = new FormData()
+      form.append('image', file)
+      const data = await request.post('/upload/image', form)
+      return { success: true, data: data.data }
+    } catch (error) {
+      return { success: false, message: errorMessage(error, '上传失败') }
+    }
+  },
+
+  async uploadAudio(file, duration = 0) {
+    try {
+      const form = new FormData()
+      form.append('audio', file)
+      form.append('duration', String(duration))
+      const data = await request.post('/upload/audio', form)
+      return { success: true, data: data.data }
+    } catch (error) {
+      return { success: false, message: errorMessage(error, '上传失败') }
+    }
+  },
+
+  async sign(names) {
+    try {
+      const data = await request.get('/upload/sign', {
+        params: { names: names.join(',') }
+      })
+      return { success: true, urls: data.urls, expiresIn: data.expiresIn }
+    } catch (error) {
+      return { success: false, urls: {}, message: errorMessage(error, '签名失败') }
+    }
+  }
+}

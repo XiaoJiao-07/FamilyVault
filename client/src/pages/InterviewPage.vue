@@ -7,6 +7,17 @@
       </template>
     </van-nav-bar>
 
+    <!-- AI 能力状态 -->
+    <div class="ai-banner" :class="aiMode">
+      <span class="ai-dot" />
+      <span class="ai-text">
+        {{ aiMode === 'live'
+          ? `AI 已连接${aiLabel ? '（' + aiLabel + '）' : ''}`
+          : 'AI 演示模式：未配置大模型，话题来自内置问题库' }}
+      </span>
+      <span v-if="aiThinking" class="ai-thinking">正在思考…</span>
+    </div>
+
     <!-- 采访对象选择 -->
     <div v-if="!sessionId" class="setup-section">
       <div class="section-header">
@@ -122,6 +133,16 @@
           <div class="message-content">
             <div class="message-bubble" :class="message.role">{{ message.text }}</div>
             <div class="message-time">{{ message.time }}</div>
+          </div>
+        </div>
+
+        <!-- AI 思考中 -->
+        <div v-if="aiThinking" class="message-item ai">
+          <div class="message-avatar ai-avatar">AI</div>
+          <div class="message-content">
+            <div class="message-bubble ai typing">
+              <span></span><span></span><span></span>
+            </div>
           </div>
         </div>
 
@@ -281,9 +302,17 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { showToast } from 'vant'
 import speechRecognizer from '@/utils/speech'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
+import { interviewAPI } from '@/utils/api'
 
 // 从 localStorage 加载采访对象
 const interviewees = ref(storage.get(STORAGE_KEYS.INTERVIEWEES, []))
+const aiMode = ref('demo')
+const aiLabel = ref('')
+const aiThinking = ref(false)
+
+const applyAiMode = (demo) => {
+  aiMode.value = demo ? 'demo' : 'live'
+}
 const selectedInterviewee = ref(null)
 const sessionId = ref(null)
 const messages = ref([])
@@ -473,8 +502,39 @@ const getNextTopic = () => {
     : '您还有什么想分享的故事吗？'
 }
 
+// 请求一轮 AI 回应（失败时退回本地话题库，保证离线也能用）
+const requestAiTurn = async (userText) => {
+  aiThinking.value = true
+  scrollToBottom()
+  let text = ''
+
+  try {
+    const result = await interviewAPI.turn({
+      interviewee: selectedInterviewee.value,
+      history: messages.value.slice(0, -1),
+      userText
+    })
+    if (result.success) {
+      text = result.data.text
+      applyAiMode(result.data.demo)
+    }
+  } catch (err) {
+    console.warn('AI 接口不可用，使用本地话题', err)
+  }
+
+  aiThinking.value = false
+
+  if (!text) {
+    text = `${generateResponse(userText)}\n\n${getNextTopic()}`
+    applyAiMode(true)
+  }
+
+  messages.value.push({ role: 'ai', text, time: getCurrentTime() })
+  scrollToBottom()
+}
+
 // 开始采访
-const startInterview = () => {
+const startInterview = async () => {
   if (!selectedInterviewee.value) {
     showToast('请先选择采访对象')
     return
@@ -482,20 +542,28 @@ const startInterview = () => {
 
   currentSessionId = Date.now()
   sessionId.value = currentSessionId
-  const firstTopic = getNextTopic()
+  messages.value = []
+  aiThinking.value = true
 
-  messages.value = [
-    {
-      role: 'ai',
-      text: `${selectedInterviewee.value.name}您好！我是 FamilyVault 的 AI 采访助手。今天我们来聊聊您的故事，请您慢慢讲，不着急。`,
-      time: getCurrentTime()
-    },
-    {
-      role: 'ai',
-      text: firstTopic,
-      time: getCurrentTime()
+  let text = ''
+  try {
+    const result = await interviewAPI.opening(selectedInterviewee.value)
+    if (result.success) {
+      text = result.data.text
+      applyAiMode(result.data.demo)
     }
-  ]
+  } catch (err) {
+    console.warn('AI 接口不可用，使用本地话题', err)
+  }
+
+  aiThinking.value = false
+
+  if (!text) {
+    text = `${selectedInterviewee.value.name}，我是家里的 AI 采访助手，想听您讲讲过去的事。\n${getNextTopic()}`
+    applyAiMode(true)
+  }
+
+  messages.value = [{ role: 'ai', text, time: getCurrentTime() }]
 
   showToast('采访已开始')
   scrollToBottom()
@@ -568,7 +636,7 @@ const startRecording = () => {
 }
 
 // 停止录音
-const stopRecording = () => {
+const stopRecording = async () => {
   if (!isRecording.value) return
 
   isRecording.value = false
@@ -583,7 +651,7 @@ const stopRecording = () => {
   const finalText = speechRecognizer.stop()
 
   // 使用转写的文字
-  setTimeout(() => {
+  setTimeout(async () => {
     // 优先使用最终文本，其次使用实时转写文本
     const userText = finalText || transcribedText.value || ''
 
@@ -601,50 +669,27 @@ const stopRecording = () => {
 
     isTranscribing.value = false
 
-    // AI 回复
-    setTimeout(() => {
-      const userText = messages.value[messages.value.length - 1].text
-      const response = generateResponse(userText)
-      const nextTopic = getNextTopic()
-
-      messages.value.push({
-        role: 'ai',
-        text: `${response}\n\n${nextTopic}`,
-        time: getCurrentTime()
-      })
-
-      recordingDuration.value = 0
-      scrollToBottom()
-    }, 800)
+    // AI 回复（真实接口，失败时本地兜底）
+    await requestAiTurn(userText)
+    recordingDuration.value = 0
   }, 1500)
 }
 
 // 发送手动输入的文字
-const sendManualInput = () => {
+const sendManualInput = async () => {
   if (!manualInputText.value.trim()) return
 
+  const userInput = manualInputText.value
   messages.value.push({
     role: 'user',
-    text: manualInputText.value,
+    text: userInput,
     time: getCurrentTime()
   })
 
-  const userInput = manualInputText.value
   manualInputText.value = ''
   scrollToBottom()
 
-  // AI 回复
-  setTimeout(() => {
-    const response = generateResponse(userInput)
-    const nextTopic = getNextTopic()
-
-    messages.value.push({
-      role: 'ai',
-      text: response + '\n\n' + nextTopic,
-      time: getCurrentTime()
-    })
-    scrollToBottom()
-  }, 1000)
+  await requestAiTurn(userInput)
 }
 
 // 结束采访 - 保存到 localStorage
@@ -752,7 +797,18 @@ const scrollToBottom = () => {
   })
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // 拉取 AI 能力状态，决定是否显示演示模式提示
+  try {
+    const status = await interviewAPI.status()
+    if (status.success) {
+      aiMode.value = status.data.mode
+      aiLabel.value = status.data.providerLabel || ''
+    }
+  } catch {
+    aiMode.value = 'demo'
+  }
+
   // 初始化默认采访对象（如果是首次使用且为空）
   if (interviewees.value.length === 0) {
     const defaults = [
@@ -1274,5 +1330,78 @@ onUnmounted(() => {
 .detail-actions {
   padding: 12px 16px 24px;
   border-top: 1px solid var(--fv-border-soft);
+}
+
+/* ---------- AI 状态横幅 ---------- */
+.ai-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  background: var(--fv-surface-soft);
+  border-bottom: 1px solid var(--fv-border-soft);
+  color: var(--fv-ink-3);
+}
+
+.ai-banner.demo {
+  background: #fdf3e6;
+  color: #8a5a2b;
+}
+
+.ai-banner.live {
+  background: #eef4ea;
+  color: #46603c;
+}
+
+.ai-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fv-brass);
+  flex: none;
+}
+
+.ai-banner.live .ai-dot {
+  background: #5f7a52;
+}
+
+.ai-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.ai-thinking {
+  color: var(--fv-primary);
+  flex: none;
+}
+
+/* ---------- 打字中气泡 ---------- */
+.message-bubble.typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 14px;
+}
+
+.message-bubble.typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fv-ink-4);
+  animation: typing-bounce 1.2s infinite;
+}
+
+.message-bubble.typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.message-bubble.typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-4px); opacity: 1; }
 }
 </style>

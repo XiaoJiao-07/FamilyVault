@@ -16,8 +16,8 @@ export async function transcribeAudio(audioPath) {
   const apiUrl = process.env.WHISPER_API_URL
 
   if (!apiUrl) {
-    // 未配置 API，返回模拟数据
-    return getMockTranscription()
+    // 未配置 API：返回演示文本，并明确标记 demo，避免调用方误以为是真实识别
+    return { text: getMockTranscription(), demo: true }
   }
 
   try {
@@ -40,7 +40,7 @@ export async function transcribeAudio(audioPath) {
       timeout: 60000 // 60秒超时
     })
 
-    return response.data.text || response.data.transcription || ''
+    return { text: response.data.text || response.data.transcription || '', demo: false }
   } catch (error) {
     console.error('Whisper 转录失败:', error.message)
     throw error
