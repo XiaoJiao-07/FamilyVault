@@ -4,23 +4,34 @@
 
     <main class="login-card">
       <header class="brand">
-        <!-- 品牌记号：葫芦印（壶中天地 · 纳福于家） -->
+        <!-- 品牌记号：玉璧·传家（红绳系璧） -->
         <svg class="seal" viewBox="0 0 100 100" aria-hidden="true">
           <defs>
-            <linearGradient id="seal-plate" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#C65B3E" />
-              <stop offset="1" stop-color="#A03826" />
-            </linearGradient>
+            <radialGradient id="jade-plate" cx="0.5" cy="0.42" r="0.72">
+              <stop offset="0" stop-color="#BFD2C4" />
+              <stop offset="1" stop-color="#82A08E" />
+            </radialGradient>
           </defs>
-          <rect x="2" y="2" width="96" height="96" rx="20" fill="url(#seal-plate)" />
-          <g fill="#FFF6EA">
-            <ellipse cx="50" cy="41.5" rx="11.5" ry="11.5" />
-            <ellipse cx="50" cy="62.75" rx="21.5" ry="15.25" />
-            <rect x="44.5" y="44" width="11" height="12" rx="2.8" />
-            <rect x="47.4" y="20.5" width="5.2" height="12.5" rx="1.3" />
-            <ellipse cx="50" cy="21.5" rx="4.5" ry="3" />
+          <!-- 玉环：外圆 + 内孔 -->
+          <circle cx="50" cy="50" r="33" fill="url(#jade-plate)" stroke="#608270" stroke-width="2.5" />
+          <circle cx="50" cy="50" r="13" fill="#fffdf8" stroke="#608270" stroke-width="2" />
+          <!-- 乳钉纹 -->
+          <g fill="#D8E6DC">
+            <circle cx="69.9" cy="61.5" r="3.2" />
+            <circle cx="50" cy="73" r="3.2" />
+            <circle cx="30.1" cy="61.5" r="3.2" />
+            <circle cx="30.1" cy="38.5" r="3.2" />
+            <circle cx="50" cy="27" r="3.2" />
+            <circle cx="69.9" cy="38.5" r="3.2" />
           </g>
-          <line x1="42.5" y1="49.7" x2="57.5" y2="49.7" stroke="#AC3E2A" stroke-width="1.8" />
+          <!-- 红绳：穿孔 + 结 + 双股穗 -->
+          <line x1="50" y1="6" x2="50" y2="65" stroke="#B4442E" stroke-width="4.5" stroke-linecap="round" />
+          <circle cx="50" cy="69" r="5" fill="#9E3626" />
+          <circle cx="50" cy="67.5" r="2" fill="#B4442E" />
+          <line x1="50" y1="73" x2="45.5" y2="88" stroke="#B4442E" stroke-width="2.5" stroke-linecap="round" />
+          <line x1="50" y1="73" x2="54.5" y2="88" stroke="#B4442E" stroke-width="2.5" stroke-linecap="round" />
+          <circle cx="45.5" cy="88.5" r="1.8" fill="#9E3626" />
+          <circle cx="54.5" cy="88.5" r="1.8" fill="#9E3626" />
         </svg>
         <h1 class="brand-title">家史馆</h1>
         <p class="brand-en">FAMILY VAULT</p>
@@ -393,8 +404,7 @@ const onForgotPassword = () => {
   width: 54px;
   height: 54px;
   margin: 0 auto 14px;
-  filter: drop-shadow(0 10px 16px rgba(156, 56, 38, 0.35));
-  transform: rotate(-2deg);
+  filter: drop-shadow(0 8px 14px rgba(96, 130, 112, 0.4));
 }
 
 .brand-title {
