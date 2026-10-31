@@ -1,5 +1,5 @@
 <template>
-  <div class="home-page" :class="{ 'dark-mode': isDarkMode }">
+  <div class="home-page">
     <!-- 顶部横幅 -->
     <div class="banner">
       <div class="banner-content">
@@ -7,11 +7,6 @@
           <h1 class="banner-title">FamilyVault</h1>
           <div class="banner-actions">
             <van-icon name="search" class="action-icon" @click="$router.push('/search')" />
-            <van-icon
-              :name="isDarkMode ? 'sun-o' : 'moon-o'"
-              class="action-icon"
-              @click="toggleDarkMode"
-            />
           </div>
         </div>
         <p class="banner-subtitle">趁老人还能说，把家族故事永久保存</p>
@@ -38,7 +33,7 @@
     <div class="feature-grid">
       <div class="feature-card" @click="$router.push('/interview')">
         <div class="feature-icon-wrapper interview-bg">
-          <van-icon name="chat-o" size="22" color="#4a5acf" />
+          <van-icon name="chat-o" size="22" color="#b4442e" />
         </div>
         <div class="feature-title">采访</div>
         <div class="feature-desc">智能引导，记录家族故事</div>
@@ -46,7 +41,7 @@
 
       <div class="feature-card" @click="$router.push('/graph')">
         <div class="feature-icon-wrapper graph-bg">
-          <van-icon name="cluster-o" size="22" color="#34a853" />
+          <van-icon name="cluster-o" size="22" color="#5f7a52" />
         </div>
         <div class="feature-title">家族图谱</div>
         <div class="feature-desc">可视化家族关系网络</div>
@@ -54,7 +49,7 @@
 
       <div class="feature-card" @click="$router.push('/map')">
         <div class="feature-icon-wrapper map-bg">
-          <van-icon name="location-o" size="22" color="#1a73e8" />
+          <van-icon name="location-o" size="22" color="#4a6b7c" />
         </div>
         <div class="feature-title">记忆地图</div>
         <div class="feature-desc">标注家族迁徙轨迹</div>
@@ -62,7 +57,7 @@
 
       <div class="feature-card" @click="$router.push('/capsule')">
         <div class="feature-icon-wrapper capsule-bg">
-          <van-icon name="clock-o" size="22" color="#e8457c" />
+          <van-icon name="clock-o" size="22" color="#9c5b6b" />
         </div>
         <div class="feature-title">时光胶囊</div>
         <div class="feature-desc">给未来的人录一段话</div>
@@ -70,7 +65,7 @@
 
       <div class="feature-card" @click="$router.push('/heirloom')">
         <div class="feature-icon-wrapper heirloom-bg">
-          <van-icon name="gift-card-o" size="22" color="#e88d2a" />
+          <van-icon name="gift-card-o" size="22" color="#b8834a" />
         </div>
         <div class="feature-title">传家宝</div>
         <div class="feature-desc">保存家传菜谱和手艺</div>
@@ -179,17 +174,10 @@ import storage, { STORAGE_KEYS } from '@/utils/storage'
 import { authAPI } from '@/utils/api'
 
 const router = useRouter()
-const isDarkMode = ref(false)
 const currentUser = ref(null)
 const showInviteCode = ref(false)
 const generatedCode = ref('')
 const generating = ref(false)
-
-const toggleDarkMode = () => {
-  isDarkMode.value = !isDarkMode.value
-  localStorage.setItem('darkMode', isDarkMode.value)
-  document.documentElement.classList.toggle('dark', isDarkMode.value)
-}
 
 const logout = async () => {
   await authAPI.logout()
@@ -252,11 +240,6 @@ const copyToClipboard = (text) => {
 }
 
 onMounted(() => {
-  const savedMode = localStorage.getItem('darkMode')
-  if (savedMode === 'true') {
-    isDarkMode.value = true
-    document.documentElement.classList.add('dark')
-  }
   loadStats()
   currentUser.value = authAPI.getCurrentUser()
 })
@@ -606,59 +589,6 @@ const dailyQuote = ref({
   margin-top: 12px;
 }
 
-/* 暗色模式 */
-.home-page.dark-mode {
-  background: #1a1a1a;
-}
-
-.dark-mode .feature-card {
-  background: #2a2a2a;
-}
-
-.dark-mode .feature-title {
-  color: #e0e0e0;
-}
-
-.dark-mode .feature-desc {
-  color: #888;
-}
-
-.dark-mode .section-title {
-  color: #e0e0e0;
-}
-
-.dark-mode .activity-list {
-  background: #2a2a2a;
-}
-
-.dark-mode .activity-item {
-  border-bottom-color: #333;
-}
-
-.dark-mode .activity-title {
-  color: #e0e0e0;
-}
-
-.dark-mode .activity-desc {
-  color: #888;
-}
-
-.dark-mode .activity-time {
-  color: #666;
-}
-
-.dark-mode .quote-card {
-  background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
-}
-
-.dark-mode .quote-text {
-  color: #e0e0e0;
-}
-
-.dark-mode .quote-author {
-  color: #aaa;
-}
-
 .empty-activities {
   text-align: center;
   padding: 24px 16px;
@@ -721,5 +651,208 @@ const dailyQuote = ref({
   font-size: 12px;
   color: #999;
   margin-bottom: 16px;
+}
+
+/* ================= 暖纸质主题覆写 ================= */
+.home-page {
+  background: transparent;
+}
+
+.banner {
+  background:
+    radial-gradient(120% 90% at 15% 0%, #c25b3e 0%, rgba(194, 91, 62, 0) 55%),
+    linear-gradient(160deg, #a8432c 0%, #8c3223 100%);
+  border-radius: 0 0 24px 24px;
+  padding: 26px 20px 22px;
+  box-shadow: 0 18px 36px -28px rgba(108, 40, 27, 0.9);
+}
+
+.banner::before,
+.banner::after {
+  background: rgba(255, 246, 234, 0.07);
+}
+
+.banner-title {
+  font-family: var(--fv-font-serif);
+  font-size: 24px;
+  letter-spacing: 0.12em;
+}
+
+.banner-subtitle {
+  color: rgba(255, 246, 234, 0.78);
+  letter-spacing: 0.04em;
+}
+
+.banner-stats {
+  background: rgba(255, 246, 234, 0.12);
+  border: 1px solid rgba(255, 246, 234, 0.16);
+  border-radius: 14px;
+}
+
+.stat-number {
+  font-family: var(--fv-font-serif);
+}
+
+.stat-label {
+  color: rgba(255, 246, 234, 0.72);
+}
+
+.stat-divider {
+  background: rgba(255, 246, 234, 0.22);
+}
+
+.feature-grid {
+  gap: 10px;
+  padding: 16px;
+}
+
+.feature-card {
+  background: var(--fv-surface);
+  border: 1px solid var(--fv-border);
+  border-radius: 16px;
+  padding: 14px 8px;
+  box-shadow: var(--fv-shadow-sm);
+}
+
+.feature-title {
+  color: var(--fv-ink);
+}
+
+.feature-desc {
+  color: var(--fv-ink-4);
+}
+
+.interview-bg {
+  background: #fbe9e3;
+}
+
+.graph-bg {
+  background: #eef2e7;
+}
+
+.map-bg {
+  background: #e9eef1;
+}
+
+.capsule-bg {
+  background: #f6e9ec;
+}
+
+.heirloom-bg {
+  background: #f8efe0;
+}
+
+.section-title {
+  font-family: var(--fv-font-serif);
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  color: var(--fv-ink);
+}
+
+.section-more {
+  color: var(--fv-primary);
+  font-size: 12px;
+}
+
+.activity-list {
+  background: var(--fv-surface);
+  border: 1px solid var(--fv-border);
+  border-radius: 16px;
+  box-shadow: var(--fv-shadow-sm);
+}
+
+.activity-item {
+  border-bottom: 1px solid var(--fv-border-soft);
+}
+
+.activity-title {
+  color: var(--fv-ink);
+}
+
+.activity-desc {
+  color: var(--fv-ink-3);
+}
+
+.activity-time {
+  color: var(--fv-ink-4);
+}
+
+.quote-card {
+  background: linear-gradient(140deg, #f9f1e2 0%, #f1e2ca 100%);
+  border: 1px solid var(--fv-border);
+  border-radius: 16px;
+}
+
+.quote-icon {
+  color: rgba(180, 68, 46, 0.16);
+}
+
+.quote-text {
+  color: var(--fv-ink-2);
+  font-family: var(--fv-font-serif);
+  font-size: 15px;
+  line-height: 1.9;
+}
+
+.quote-author {
+  color: var(--fv-ink-3);
+}
+
+.start-btn {
+  height: 48px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  border: 0;
+  background: linear-gradient(135deg, #c25b3e 0%, #9c3826 100%);
+  box-shadow: 0 12px 24px -16px rgba(156, 56, 38, 0.95);
+}
+
+.share-btn {
+  height: 44px;
+  font-size: 13px;
+  color: var(--fv-ink-2);
+  background: var(--fv-surface);
+  border-color: var(--fv-border);
+}
+
+.empty-activities {
+  background: var(--fv-surface-soft);
+  border: 1px dashed var(--fv-border);
+  border-radius: 16px;
+  padding: 28px 16px;
+  color: var(--fv-ink-4);
+  font-size: 13px;
+}
+
+.section > .van-cell {
+  border-radius: 16px;
+  border: 1px solid var(--fv-border);
+  box-shadow: var(--fv-shadow-sm);
+}
+
+.panel-header {
+  border-bottom: 1px solid var(--fv-border-soft);
+}
+
+.panel-header h3 {
+  font-family: var(--fv-font-serif);
+  color: var(--fv-ink);
+}
+
+.code-result p {
+  color: var(--fv-ink-3);
+}
+
+.code-display {
+  color: var(--fv-primary);
+  background: var(--fv-primary-soft);
+  border: 1px solid #f0cfc1;
+  font-family: var(--fv-font-serif);
+  letter-spacing: 0.18em;
+}
+
+.code-hint {
+  color: var(--fv-ink-4);
 }
 </style>

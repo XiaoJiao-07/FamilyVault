@@ -42,7 +42,8 @@ const hideTabbar = computed(() => {
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  background-color: #f7f8fa;
+  background-color: var(--fv-paper);
+  color: var(--fv-ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

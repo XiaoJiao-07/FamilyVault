@@ -303,4 +303,109 @@ const startUsing = () => {
   border-radius: 4px;
   background: white;
 }
+
+/* ================= 暖纸质主题覆写 ================= */
+.welcome-page {
+  background:
+    radial-gradient(120% 65% at 50% -10%, #fffbf2 0%, rgba(255, 251, 242, 0) 62%),
+    radial-gradient(80% 50% at 100% 102%, rgba(201, 154, 91, 0.22), rgba(201, 154, 91, 0) 62%),
+    var(--fv-paper);
+}
+
+.skip-btn {
+  top: calc(20px + env(safe-area-inset-top));
+  color: var(--fv-ink-3);
+}
+
+.welcome-content {
+  color: var(--fv-ink);
+}
+
+.welcome-icon {
+  width: 84px;
+  height: 84px;
+  border-radius: 22px;
+  background: linear-gradient(150deg, #c25b3e 0%, #9c3826 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 246, 234, 0.5),
+    0 16px 30px -18px rgba(156, 56, 38, 0.95);
+  backdrop-filter: none;
+  margin-bottom: 26px;
+}
+
+.welcome-title {
+  font-family: var(--fv-font-serif);
+  color: var(--fv-ink);
+  font-size: 34px;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+}
+
+.welcome-subtitle {
+  color: var(--fv-primary);
+  opacity: 1;
+  font-size: 16px;
+  letter-spacing: 0.16em;
+}
+
+.welcome-desc {
+  color: var(--fv-ink-2);
+  font-family: var(--fv-font-serif);
+  font-size: 15px;
+  line-height: 2;
+  opacity: 1;
+}
+
+.feature-title {
+  font-family: var(--fv-font-serif);
+  color: var(--fv-ink);
+  letter-spacing: 0.08em;
+  font-size: 22px;
+}
+
+.feature-desc {
+  color: var(--fv-ink-3);
+  opacity: 1;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.feature-preview {
+  background: var(--fv-surface);
+  border: 1px solid var(--fv-border);
+  border-radius: 18px;
+  box-shadow: var(--fv-shadow);
+  backdrop-filter: none;
+}
+
+.chat-bubble.ai {
+  background: var(--fv-surface-soft);
+  border: 1px solid var(--fv-border);
+  color: var(--fv-ink-2);
+}
+
+.chat-bubble.user {
+  background: var(--fv-primary-soft);
+  border: 1px solid #f0cfc1;
+  color: var(--fv-ink);
+}
+
+.graph-preview .node {
+  background: var(--fv-brass-soft);
+  border: 1px solid var(--fv-border);
+  color: var(--fv-ink-2);
+}
+
+.graph-preview .line {
+  opacity: 0.45;
+  color: var(--fv-ink-3);
+}
+
+.dot {
+  background: rgba(43, 33, 25, 0.16);
+}
+
+.dot.active {
+  background: var(--fv-primary);
+}
 </style>

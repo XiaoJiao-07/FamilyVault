@@ -112,7 +112,7 @@ const mockData = [
     title: '爷爷的童年故事',
     description: 'AI 采访 · 12 条对话',
     icon: '👴',
-    color: 'linear-gradient(135deg, #667eea, #764ba2)',
+    color: 'linear-gradient(135deg, var(--fv-primary), var(--fv-primary-deep))',
     category: '采访',
     tagType: 'primary',
     time: '昨天',
@@ -124,7 +124,7 @@ const mockData = [
     title: '奶奶的红烧肉',
     description: '传家宝 · 菜谱',
     icon: '👵',
-    color: 'linear-gradient(135deg, #f093fb, #f5576c)',
+    color: 'linear-gradient(135deg, #e6b8c3, #c9737f)',
     category: '传家宝',
     tagType: 'danger',
     time: '3天前',
@@ -136,7 +136,7 @@ const mockData = [
     title: '爷爷的老家',
     description: '记忆地图 · 湖北武汉',
     icon: '📍',
-    color: 'linear-gradient(135deg, #4facfe, #00f2fe)',
+    color: 'linear-gradient(135deg, #a9c6d6, #7fb3c4)',
     category: '地图',
     tagType: 'success',
     time: '1周前',
@@ -148,7 +148,7 @@ const mockData = [
     title: '爸爸',
     description: '家族图谱 · 1978年生',
     icon: '👨',
-    color: 'linear-gradient(135deg, #43e97b, #38f9d7)',
+    color: 'linear-gradient(135deg, #b7cfa4, #8fc9b4)',
     category: '成员',
     tagType: 'primary',
     time: '2周前',
@@ -252,11 +252,11 @@ onMounted(() => {
 <style scoped>
 .search-page {
   min-height: 100vh;
-  background: #f7f8fa;
+  background: var(--fv-surface-soft);
 }
 
 .search-bar {
-  background: white;
+  background: var(--fv-surface);
 }
 
 .hot-search, .search-history {
@@ -266,7 +266,7 @@ onMounted(() => {
 .section-title {
   font-size: 14px;
   font-weight: 500;
-  color: #666;
+  color: var(--fv-ink-2);
   margin: 0 0 12px;
 }
 
@@ -288,7 +288,7 @@ onMounted(() => {
 }
 
 .history-list {
-  background: white;
+  background: var(--fv-surface);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -298,10 +298,10 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid var(--fv-border-soft);
   cursor: pointer;
   font-size: 14px;
-  color: #333;
+  color: var(--fv-ink);
 }
 
 .history-item:last-child {
@@ -309,7 +309,7 @@ onMounted(() => {
 }
 
 .history-item:active {
-  background: #f7f8fa;
+  background: var(--fv-surface-soft);
 }
 
 .search-results {
@@ -325,7 +325,7 @@ onMounted(() => {
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: #999;
+  color: var(--fv-ink-3);
 }
 
 .empty-state p {
@@ -334,7 +334,7 @@ onMounted(() => {
 }
 
 .results-list {
-  background: white;
+  background: var(--fv-surface);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -343,7 +343,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   padding: 14px 16px;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid var(--fv-border-soft);
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -353,7 +353,7 @@ onMounted(() => {
 }
 
 .result-item:active {
-  background: #f7f8fa;
+  background: var(--fv-surface-soft);
 }
 
 .result-icon {
@@ -376,13 +376,13 @@ onMounted(() => {
 .result-title {
   font-size: 15px;
   font-weight: 500;
-  color: #333;
+  color: var(--fv-ink);
   margin-bottom: 4px;
 }
 
 .result-desc {
   font-size: 13px;
-  color: #999;
+  color: var(--fv-ink-3);
   margin-bottom: 6px;
 }
 
@@ -394,6 +394,6 @@ onMounted(() => {
 
 .result-time {
   font-size: 12px;
-  color: #bbb;
+  color: var(--fv-ink-4);
 }
 </style>

@@ -157,16 +157,16 @@ const newMember = ref({
 
 // 默认家族数据
 const defaultNodes = [
-  { id: 1, name: '曾祖父', gender: '男', birthYear: 1920, hometown: '湖北武汉', occupation: '商人', color: '#4A90E2' },
-  { id: 2, name: '曾祖母', gender: '女', birthYear: 1922, hometown: '湖北武汉', occupation: '家庭主妇', color: '#E91E63' },
-  { id: 3, name: '爷爷', gender: '男', birthYear: 1950, hometown: '湖北武汉', occupation: '工程师', color: '#4A90E2' },
-  { id: 4, name: '奶奶', gender: '女', birthYear: 1952, hometown: '四川成都', occupation: '教师', color: '#E91E63' },
-  { id: 5, name: '大伯', gender: '男', birthYear: 1975, hometown: '湖北武汉', occupation: '医生', color: '#4A90E2' },
-  { id: 6, name: '爸爸', gender: '男', birthYear: 1978, hometown: '湖北武汉', occupation: '程序员', color: '#4A90E2' },
-  { id: 7, name: '妈妈', gender: '女', birthYear: 1980, hometown: '湖南长沙', occupation: '会计', color: '#E91E63' },
-  { id: 8, name: '我', gender: '男', birthYear: 2005, hometown: '湖北武汉', occupation: '学生', color: '#4A90E2' },
-  { id: 9, name: '堂哥', gender: '男', birthYear: 2003, hometown: '湖北武汉', occupation: '大学生', color: '#4A90E2' },
-  { id: 10, name: '姑姑', gender: '女', birthYear: 1982, hometown: '湖北武汉', occupation: '设计师', color: '#E91E63' }
+  { id: 1, name: '曾祖父', gender: '男', birthYear: 1920, hometown: '湖北武汉', occupation: '商人', color: '#4A6B7C' },
+  { id: 2, name: '曾祖母', gender: '女', birthYear: 1922, hometown: '湖北武汉', occupation: '家庭主妇', color: '#9C5B6B' },
+  { id: 3, name: '爷爷', gender: '男', birthYear: 1950, hometown: '湖北武汉', occupation: '工程师', color: '#4A6B7C' },
+  { id: 4, name: '奶奶', gender: '女', birthYear: 1952, hometown: '四川成都', occupation: '教师', color: '#9C5B6B' },
+  { id: 5, name: '大伯', gender: '男', birthYear: 1975, hometown: '湖北武汉', occupation: '医生', color: '#4A6B7C' },
+  { id: 6, name: '爸爸', gender: '男', birthYear: 1978, hometown: '湖北武汉', occupation: '程序员', color: '#4A6B7C' },
+  { id: 7, name: '妈妈', gender: '女', birthYear: 1980, hometown: '湖南长沙', occupation: '会计', color: '#9C5B6B' },
+  { id: 8, name: '我', gender: '男', birthYear: 2005, hometown: '湖北武汉', occupation: '学生', color: '#4A6B7C' },
+  { id: 9, name: '堂哥', gender: '男', birthYear: 2003, hometown: '湖北武汉', occupation: '大学生', color: '#4A6B7C' },
+  { id: 10, name: '姑姑', gender: '女', birthYear: 1982, hometown: '湖北武汉', occupation: '设计师', color: '#9C5B6B' }
 ]
 
 const defaultEdges = [
@@ -235,7 +235,7 @@ const renderGraph = () => {
     .data(graphData.value.edges)
     .enter()
     .append('line')
-    .attr('stroke', '#e0e0e0')
+    .attr('stroke', '#E5D9C7')
     .attr('stroke-width', 2)
     .attr('stroke-opacity', 0.8)
 
@@ -254,8 +254,8 @@ const renderGraph = () => {
   // 节点圆形（带渐变）
   node.append('circle')
     .attr('r', 32)
-    .attr('fill', d => d.gender === '男' ? '#4A90E2' : '#E91E63')
-    .attr('stroke', '#fff')
+    .attr('fill', d => d.gender === '男' ? '#4A6B7C' : '#9C5B6B')
+    .attr('stroke', '#FFFDF8')
     .attr('stroke-width', 3)
     .attr('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))')
 
@@ -275,7 +275,7 @@ const renderGraph = () => {
     .attr('dy', 50)
     .attr('font-size', '12px')
     .attr('font-weight', '500')
-    .attr('fill', '#333')
+    .attr('fill', '#2B2119')
 
   // 连线标签
   const linkLabel = svg.append('g')
@@ -285,7 +285,7 @@ const renderGraph = () => {
     .append('text')
     .text(d => d.label)
     .attr('font-size', '10px')
-    .attr('fill', '#999')
+    .attr('fill', '#8E7C69')
     .attr('text-anchor', 'middle')
     .attr('dy', -5)
 
@@ -381,7 +381,7 @@ const onAddMember = async () => {
     birthYear: parseInt(newMember.value.birthYear) || null,
     hometown: newMember.value.hometown,
     occupation: newMember.value.occupation,
-    color: newMember.value.gender === '女' ? '#E91E63' : '#4A90E2'
+    color: newMember.value.gender === '女' ? '#9C5B6B' : '#4A6B7C'
   }
 
   graphData.value.nodes.push(newNode)
@@ -408,22 +408,22 @@ onUnmounted(() => {
 <style scoped>
 .graph-page {
   min-height: 100vh;
-  background: #f7f8fa;
+  background: var(--fv-surface-soft);
   display: flex;
   flex-direction: column;
   position: relative;
 }
 
 .toolbar {
-  background: white;
+  background: var(--fv-surface);
   padding: 8px 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--fv-border-soft);
 }
 
 .graph-canvas {
   flex: 1;
   overflow: hidden;
-  background: white;
+  background: var(--fv-surface);
   min-height: 400px;
 }
 
@@ -438,7 +438,7 @@ onUnmounted(() => {
   display: flex;
   gap: 12px;
   font-size: 11px;
-  color: #666;
+  color: var(--fv-ink-2);
 }
 
 .legend-item {
@@ -453,13 +453,13 @@ onUnmounted(() => {
   border-radius: 50%;
 }
 
-.legend-dot.male { background: #4A90E2; }
-.legend-dot.female { background: #E91E63; }
+.legend-dot.male { background: #4A6B7C; }
+.legend-dot.female { background: #9C5B6B; }
 
 .legend-line {
   width: 16px;
   height: 2px;
-  background: #e0e0e0;
+  background: #E5D9C7;
 }
 
 .member-detail {
@@ -502,7 +502,7 @@ onUnmounted(() => {
 .detail-info p {
   margin: 2px 0;
   font-size: 13px;
-  color: #666;
+  color: var(--fv-ink-2);
 }
 
 .relations-section {
@@ -520,7 +520,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 10px 0;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid var(--fv-border-soft);
 }
 
 .relation-item:last-child {
@@ -529,7 +529,7 @@ onUnmounted(() => {
 
 .relation-name {
   font-size: 14px;
-  color: #333;
+  color: var(--fv-ink);
 }
 
 .detail-actions {
@@ -554,7 +554,7 @@ onUnmounted(() => {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: #007aff;
+  background: var(--fv-primary);
   display: flex;
   align-items: center;
   justify-content: center;

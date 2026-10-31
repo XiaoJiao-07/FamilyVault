@@ -142,7 +142,7 @@
 
         <!-- 转文字中提示 -->
         <div v-if="isTranscribing" class="transcribing-indicator">
-          <van-loading type="spinner" size="20" color="#007aff" />
+          <van-loading type="spinner" size="20" color="var(--fv-primary)" />
           <span>正在转文字...</span>
         </div>
       </div>
@@ -232,7 +232,7 @@
                 {{ session.messages.length }}条对话 · {{ formatDuration(session.duration) }}
               </div>
             </div>
-            <van-icon name="arrow" color="#999" />
+            <van-icon name="arrow" color="var(--fv-ink-3)" />
           </div>
         </div>
       </div>
@@ -257,7 +257,7 @@
             :key="idx"
             :class="['message-item', msg.role]"
           >
-            <div class="message-avatar" :style="{ background: msg.role === 'ai' ? '#007aff' : '#07c160' }">
+            <div class="message-avatar" :style="{ background: msg.role === 'ai' ? 'var(--fv-primary)' : '#5f7a52' }">
               <span class="avatar-text-small">{{ msg.role === 'ai' ? 'AI' : currentSession.interviewee.name.charAt(0) }}</span>
             </div>
             <div class="message-content">
@@ -428,7 +428,7 @@ const addInterviewee = () => {
   }
 
   const colors = [
-    '#007aff', '#5856d6', '#ff9500', '#ff3b30',
+    'var(--fv-primary)', 'var(--fv-primary-deep)', '#ff9500', 'var(--fv-primary)',
     '#34c759', '#af52de', '#ff2d55', '#00c7be'
   ]
 
@@ -762,7 +762,7 @@ onMounted(() => {
         age: 74,
         hometown: '湖北武汉',
         relationship: '祖父',
-        color: '#007aff',
+        color: 'var(--fv-primary)',
         sessions_count: 0,
         created_at: new Date().toISOString()
       },
@@ -782,7 +782,7 @@ onMounted(() => {
         age: 46,
         hometown: '湖北武汉',
         relationship: '父亲',
-        color: '#5856d6',
+        color: 'var(--fv-primary-deep)',
         sessions_count: 0,
         created_at: new Date().toISOString()
       }
@@ -804,7 +804,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #fafbfc;
+  background: var(--fv-paper);
 }
 
 /* 设置区域 */
@@ -821,13 +821,13 @@ onUnmounted(() => {
 .section-title {
   font-size: 18px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--fv-ink);
   letter-spacing: -0.3px;
 }
 
 .section-subtitle {
   font-size: 13px;
-  color: #8e8e93;
+  color: var(--fv-ink-3);
   margin: 24px 0 12px 0;
 }
 
@@ -842,7 +842,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   padding: 14px 16px;
-  background: white;
+  background: var(--fv-surface);
   border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -851,14 +851,14 @@ onUnmounted(() => {
 }
 
 .interviewee-card.active {
-  border-color: #007aff;
-  background: #f0f7ff;
+  border-color: var(--fv-primary);
+  background: var(--fv-primary-soft);
   box-shadow: 0 2px 8px rgba(0, 122, 255, 0.1);
 }
 
 .interviewee-card:active {
   transform: scale(0.98);
-  background: #f5f5f7;
+  background: var(--fv-surface-soft);
 }
 
 .avatar {
@@ -887,13 +887,13 @@ onUnmounted(() => {
 .interviewee-card .name {
   font-size: 15px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--fv-ink);
   margin-bottom: 3px;
 }
 
 .interviewee-card .meta {
   font-size: 12px;
-  color: #8e8e93;
+  color: var(--fv-ink-3);
 }
 
 .add-section {
@@ -909,7 +909,7 @@ onUnmounted(() => {
   height: 50px;
   font-size: 16px;
   font-weight: 600;
-  background: #007aff;
+  background: var(--fv-primary);
   border: none;
   border-radius: 14px;
   letter-spacing: 0.3px;
@@ -920,8 +920,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   padding: 14px 16px;
-  background: white;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--fv-surface);
+  border-bottom: 1px solid var(--fv-border-soft);
 }
 
 .info-content {
@@ -932,20 +932,20 @@ onUnmounted(() => {
 .info-content .name {
   font-size: 16px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--fv-ink);
   margin-bottom: 3px;
 }
 
 .info-content .meta {
   font-size: 12px;
-  color: #8e8e93;
+  color: var(--fv-ink-3);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .info-content .duration {
-  color: #ff3b30;
+  color: var(--fv-primary);
   font-weight: 600;
   font-size: 12px;
 }
@@ -954,7 +954,7 @@ onUnmounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
-  background: #fafbfc;
+  background: var(--fv-paper);
 }
 
 .message-item {
@@ -987,7 +987,7 @@ onUnmounted(() => {
 }
 
 .ai-avatar {
-  background: #007aff;
+  background: var(--fv-primary);
 }
 
 .avatar-text-small {
@@ -1017,21 +1017,21 @@ onUnmounted(() => {
 }
 
 .message-bubble.ai {
-  background: white;
-  color: #1a1a1a;
+  background: var(--fv-surface);
+  color: var(--fv-ink);
   border-bottom-left-radius: 6px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .message-bubble.user {
-  background: #007aff;
+  background: var(--fv-primary);
   color: white;
   border-bottom-right-radius: 6px;
 }
 
 .message-time {
   font-size: 11px;
-  color: #c7c7cc;
+  color: var(--fv-ink-4);
   margin-top: 5px;
   padding: 0 4px;
 }
@@ -1043,7 +1043,7 @@ onUnmounted(() => {
   justify-content: center;
   gap: 10px;
   padding: 14px 24px;
-  background: white;
+  background: var(--fv-surface);
   border-radius: 24px;
   margin: 16px auto;
   width: fit-content;
@@ -1054,7 +1054,7 @@ onUnmounted(() => {
 
 .recording-indicator span {
   font-size: 13px;
-  color: #ee0a24;
+  color: var(--fv-primary);
   font-weight: 500;
 }
 
@@ -1068,7 +1068,7 @@ onUnmounted(() => {
 .recording-wave span {
   display: block;
   width: 3px;
-  background: #ee0a24;
+  background: var(--fv-primary);
   border-radius: 2px;
   animation: wave 1s ease-in-out infinite;
 }
@@ -1090,7 +1090,7 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.9);
   border-radius: 8px;
   font-size: 13px;
-  color: #333;
+  color: var(--fv-ink);
   max-width: 280px;
   text-align: left;
   line-height: 1.5;
@@ -1103,7 +1103,7 @@ onUnmounted(() => {
   justify-content: center;
   gap: 8px;
   padding: 12px 20px;
-  background: white;
+  background: var(--fv-surface);
   border-radius: 20px;
   margin: 16px auto;
   width: fit-content;
@@ -1112,17 +1112,17 @@ onUnmounted(() => {
 
 .transcribing-indicator span {
   font-size: 13px;
-  color: #666;
+  color: var(--fv-ink-2);
 }
 
 .action-bar {
   padding: 12px 16px 16px;
-  background: white;
-  border-top: 1px solid #f0f0f0;
+  background: var(--fv-surface);
+  border-top: 1px solid var(--fv-border-soft);
 }
 
 .record-btn {
-  background: #007aff;
+  background: var(--fv-primary);
   border: none;
   height: 48px;
   font-size: 15px;
@@ -1135,7 +1135,7 @@ onUnmounted(() => {
 }
 
 .manual-input :deep(.van-field) {
-  background: #f7f8fa;
+  background: var(--fv-surface-soft);
   border-radius: 8px;
   padding: 10px 12px;
 }
@@ -1156,7 +1156,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--fv-border-soft);
 }
 
 .history-header h3 {
@@ -1174,7 +1174,7 @@ onUnmounted(() => {
 .empty-history {
   text-align: center;
   padding: 60px 20px;
-  color: #999;
+  color: var(--fv-ink-3);
 }
 
 .empty-history p {
@@ -1186,7 +1186,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   padding: 14px;
-  background: white;
+  background: var(--fv-surface);
   border-radius: 14px;
   margin-bottom: 10px;
   cursor: pointer;
@@ -1196,7 +1196,7 @@ onUnmounted(() => {
 
 .history-card:active {
   transform: scale(0.98);
-  background: #f8f9ff;
+  background: var(--fv-primary-soft);
 }
 
 .history-avatar {
@@ -1224,18 +1224,18 @@ onUnmounted(() => {
 .history-name {
   font-size: 15px;
   font-weight: 600;
-  color: #333;
+  color: var(--fv-ink);
 }
 
 .history-date {
   font-size: 12px;
-  color: #999;
+  color: var(--fv-ink-3);
   margin-top: 2px;
 }
 
 .history-stats {
   font-size: 11px;
-  color: #bbb;
+  color: var(--fv-ink-4);
   margin-top: 3px;
 }
 
@@ -1251,7 +1251,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--fv-border-soft);
   font-size: 15px;
   font-weight: 600;
 }
@@ -1261,8 +1261,8 @@ onUnmounted(() => {
   gap: 16px;
   padding: 12px 20px;
   font-size: 12px;
-  color: #999;
-  background: #f8f9fa;
+  color: var(--fv-ink-3);
+  background: var(--fv-surface-soft);
 }
 
 .detail-messages {
@@ -1273,6 +1273,6 @@ onUnmounted(() => {
 
 .detail-actions {
   padding: 12px 16px 24px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--fv-border-soft);
 }
 </style>

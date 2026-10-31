@@ -1,0 +1,166 @@
+/**
+ * FamilyVault 设计系统 —— 暖纸质家书风
+ * 页面统一使用这里的设计令牌，不要在组件里写死颜色。
+ */
+
+:root {
+  /* 纸面与墨色 */
+  --fv-paper: #f5eee3;
+  --fv-paper-deep: #efe6d8;
+  --fv-surface: #fffdf8;
+  --fv-surface-soft: #fffcf6;
+  --fv-ink: #2b2119;
+  --fv-ink-2: #5c4b3b;
+  --fv-ink-3: #8e7c69;
+  --fv-ink-4: #b3a28d;
+  --fv-border: #eadfcd;
+  --fv-border-soft: #f1e8da;
+
+  /* 品牌色：印章红 + 黄铜 */
+  --fv-primary: #b4442e;
+  --fv-primary-deep: #9c3826;
+  --fv-primary-soft: #fcefe9;
+  --fv-brass: #c99a5b;
+  --fv-brass-soft: #f6ead6;
+  --fv-success: #4f7a52;
+
+  /* 形状与阴影 */
+  --fv-radius-lg: 20px;
+  --fv-radius: 14px;
+  --fv-radius-sm: 10px;
+  --fv-shadow: 0 18px 40px -24px rgba(74, 52, 36, 0.42), 0 2px 6px rgba(74, 52, 36, 0.05);
+  --fv-shadow-sm: 0 8px 20px -14px rgba(74, 52, 36, 0.4);
+
+  /* 字体 */
+  --fv-font-serif: 'Songti SC', 'STSong', 'SimSun', serif;
+
+  /* ---- Vant 组件变量覆盖 ---- */
+  --van-primary-color: var(--fv-primary);
+  --van-background: var(--fv-paper);
+  --van-background-2: var(--fv-surface);
+  --van-background-3: var(--fv-surface);
+  --van-text-color: var(--fv-ink);
+  --van-text-color-2: var(--fv-ink-3);
+  --van-text-color-3: var(--fv-ink-4);
+  --van-border-color: var(--fv-border);
+  --van-active-color: rgba(180, 68, 46, 0.06);
+  --van-cell-background: var(--fv-surface);
+  --van-cell-text-color: var(--fv-ink);
+  --van-cell-label-color: var(--fv-ink-3);
+  --van-cell-value-color: var(--fv-ink-3);
+  --van-field-label-color: var(--fv-ink-3);
+  --van-field-input-text-color: var(--fv-ink);
+  --van-field-placeholder-text-color: var(--fv-ink-4);
+  --van-button-primary-background: var(--fv-primary);
+  --van-button-primary-border-color: var(--fv-primary);
+  --van-button-default-color: var(--fv-ink-2);
+  --van-button-default-border-color: var(--fv-border);
+  --van-tabbar-background: var(--fv-surface);
+  --van-tabbar-item-text-color: var(--fv-ink-4);
+  --van-tabbar-item-active-color: var(--fv-primary);
+  --van-tabbar-item-active-background: transparent;
+  --van-nav-bar-background: transparent;
+  --van-nav-bar-title-text-color: var(--fv-ink);
+  --van-nav-bar-icon-color: var(--fv-ink-2);
+  --van-nav-bar-text-color: var(--fv-primary);
+  --van-tabs-bottom-bar-color: var(--fv-primary);
+  --van-tabs-nav-background: transparent;
+  --van-tab-active-text-color: var(--fv-ink);
+  --van-tag-primary-color: var(--fv-primary);
+  --van-loading-spinner-color: var(--fv-primary);
+  --van-popup-background: var(--fv-surface);
+  --van-overlay-background: rgba(43, 33, 25, 0.55);
+  --van-toast-background: rgba(43, 33, 25, 0.9);
+  --van-radius-md: 10px;
+  --van-radius-lg: 14px;
+}
+
+html,
+body {
+  background-color: var(--fv-paper);
+  color: var(--fv-ink);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+}
+
+/* 纸面纹理：极细竖线，营造账本纸质感 */
+.app-container {
+  background-color: var(--fv-paper);
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(43, 33, 25, 0.022) 0 1px,
+    transparent 1px 26px
+  );
+}
+
+/* 底部导航 */
+.van-tabbar {
+  border-top: 1px solid var(--fv-border-soft);
+  box-shadow: 0 -6px 24px -18px rgba(74, 52, 36, 0.5);
+}
+
+.van-tabbar-item__text {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+/* 卡片与表单 */
+.van-cell-group--inset {
+  border-radius: var(--fv-radius);
+  box-shadow: var(--fv-shadow-sm);
+}
+
+.van-cell::after {
+  border-color: var(--fv-border-soft);
+}
+
+.van-popup--bottom.van-popup--round {
+  border-radius: var(--fv-radius-lg) var(--fv-radius-lg) 0 0;
+}
+
+.van-toast {
+  border-radius: var(--fv-radius);
+}
+
+/* ---- 共享工具类 ---- */
+.fv-card {
+  background: var(--fv-surface);
+  border: 1px solid var(--fv-border);
+  border-radius: var(--fv-radius);
+  box-shadow: var(--fv-shadow-sm);
+}
+
+.fv-serif {
+  font-family: var(--fv-font-serif);
+  letter-spacing: 0.06em;
+}
+
+.fv-section-title {
+  font-family: var(--fv-font-serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--fv-ink);
+  letter-spacing: 0.04em;
+}
+
+.fv-muted {
+  color: var(--fv-ink-3);
+}
+
+.fv-empty {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--fv-ink-4);
+  background: var(--fv-surface-soft);
+  border: 1px dashed var(--fv-border);
+  border-radius: var(--fv-radius);
+}
+
+/* 滚动条 */
+::-webkit-scrollbar-thumb {
+  background: var(--fv-border);
+}

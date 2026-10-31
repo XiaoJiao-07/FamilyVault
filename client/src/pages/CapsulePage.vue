@@ -12,7 +12,7 @@
       >
         <div class="capsule-header">
           <div class="capsule-icon" :class="capsule.is_unlocked ? 'unlocked-bg' : 'locked-bg'">
-            <van-icon :name="capsule.is_unlocked ? 'passed' : 'lock'" size="22" :color="capsule.is_unlocked ? '#07c160' : '#ff976a'" />
+            <van-icon :name="capsule.is_unlocked ? 'passed' : 'lock'" size="22" :color="capsule.is_unlocked ? '#5f7a52' : '#ff976a'" />
           </div>
           <div class="capsule-info">
             <div class="capsule-title">{{ capsule.title }}</div>
@@ -235,7 +235,7 @@ onMounted(() => {
 <style scoped>
 .capsule-page {
   min-height: 100vh;
-  background: #f7f8fa;
+  background: var(--fv-surface-soft);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -248,7 +248,7 @@ onMounted(() => {
 }
 
 .capsule-card {
-  background: white;
+  background: var(--fv-surface);
   border-radius: 16px;
   padding: 16px;
   margin-bottom: 14px;
@@ -257,7 +257,7 @@ onMounted(() => {
 }
 
 .capsule-card.unlocked {
-  border-left: 4px solid #07c160;
+  border-left: 4px solid #5f7a52;
 }
 
 .capsule-card.locked {
@@ -284,11 +284,11 @@ onMounted(() => {
 }
 
 .locked-bg {
-  background: linear-gradient(135deg, #ffecd2, #fcb69f);
+  background: linear-gradient(135deg, #f7e7d2, #e9c3a8);
 }
 
 .unlocked-bg {
-  background: linear-gradient(135deg, #a8edea, #fed6e3);
+  background: linear-gradient(135deg, #cfe0da, #f3dcd6);
 }
 
 .capsule-info {
@@ -298,19 +298,19 @@ onMounted(() => {
 .capsule-title {
   font-size: 15px;
   font-weight: 600;
-  color: #333;
+  color: var(--fv-ink);
   margin-bottom: 3px;
 }
 
 .capsule-meta {
   font-size: 12px;
-  color: #999;
+  color: var(--fv-ink-3);
 }
 
 .capsule-content {
   margin-bottom: 14px;
   padding: 14px;
-  background: #f8f9fa;
+  background: var(--fv-surface-soft);
   border-radius: 12px;
 }
 
@@ -318,7 +318,7 @@ onMounted(() => {
   margin: 0;
   font-size: 14px;
   line-height: 1.7;
-  color: #333;
+  color: var(--fv-ink);
 }
 
 .locked-content {
@@ -353,13 +353,13 @@ onMounted(() => {
 
 .countdown .unit {
   font-size: 14px;
-  color: #999;
+  color: var(--fv-ink-3);
 }
 
 .locked-content p {
   margin: 0;
   font-size: 13px;
-  color: #999;
+  color: var(--fv-ink-3);
 }
 
 .capsule-footer {
@@ -375,7 +375,7 @@ onMounted(() => {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: #007aff;
+  background: var(--fv-primary);
   display: flex;
   align-items: center;
   justify-content: center;

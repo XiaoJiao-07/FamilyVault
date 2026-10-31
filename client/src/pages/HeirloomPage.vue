@@ -273,7 +273,7 @@ const onAdd = () => {
 <style scoped>
 .heirloom-page {
   min-height: 100vh;
-  background: #f7f8fa;
+  background: var(--fv-surface-soft);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -290,7 +290,7 @@ const onAdd = () => {
 }
 
 .heirloom-card {
-  background: white;
+  background: var(--fv-surface);
   border-radius: 14px;
   margin-bottom: 12px;
   overflow: hidden;
@@ -318,9 +318,9 @@ const onAdd = () => {
   flex-shrink: 0;
 }
 
-.card-category.recipe { background: linear-gradient(180deg, #f093fb, #f5576c); }
-.card-category.craft { background: linear-gradient(180deg, #4facfe, #00f2fe); }
-.card-category.motto { background: linear-gradient(180deg, #43e97b, #38f9d7); }
+.card-category.recipe { background: linear-gradient(180deg, #e6b8c3, #c9737f); }
+.card-category.craft { background: linear-gradient(180deg, #a9c6d6, #7fb3c4); }
+.card-category.motto { background: linear-gradient(180deg, #b7cfa4, #8fc9b4); }
 
 .card-body {
   flex: 1;
@@ -331,13 +331,13 @@ const onAdd = () => {
 .card-title {
   font-size: 15px;
   font-weight: 600;
-  color: #333;
+  color: var(--fv-ink);
   margin-bottom: 6px;
 }
 
 .card-content {
   font-size: 13px;
-  color: #666;
+  color: var(--fv-ink-2);
   line-height: 1.5;
   margin-bottom: 10px;
   overflow: hidden;
@@ -351,7 +351,7 @@ const onAdd = () => {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: #bbb;
+  color: var(--fv-ink-4);
 }
 
 .fab {
@@ -361,7 +361,7 @@ const onAdd = () => {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, var(--fv-primary), var(--fv-primary-deep));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -393,9 +393,9 @@ const onAdd = () => {
   margin-bottom: 10px;
 }
 
-.detail-category.recipe { background: linear-gradient(135deg, #f093fb, #f5576c); }
-.detail-category.craft { background: linear-gradient(135deg, #4facfe, #00f2fe); }
-.detail-category.motto { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+.detail-category.recipe { background: linear-gradient(135deg, #e6b8c3, #c9737f); }
+.detail-category.craft { background: linear-gradient(135deg, #a9c6d6, #7fb3c4); }
+.detail-category.motto { background: linear-gradient(135deg, #b7cfa4, #8fc9b4); }
 
 .detail-header h2 {
   margin: 0 0 8px 0;
@@ -405,13 +405,13 @@ const onAdd = () => {
 
 .author-info {
   font-size: 13px;
-  color: #999;
+  color: var(--fv-ink-3);
   margin: 0;
 }
 
 .detail-body {
   padding: 16px;
-  background: #f8f9fa;
+  background: var(--fv-surface-soft);
   border-radius: 12px;
   margin-bottom: 16px;
   max-height: 45vh;
@@ -423,7 +423,7 @@ const onAdd = () => {
   font-size: 14px;
   line-height: 1.8;
   white-space: pre-wrap;
-  color: #333;
+  color: var(--fv-ink);
 }
 
 .detail-footer {

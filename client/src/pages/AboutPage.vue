@@ -174,7 +174,7 @@ const clearData = async () => {
 <style scoped>
 .about-page {
   min-height: 100vh;
-  background: #f7f8fa;
+  background: var(--fv-surface-soft);
 }
 
 .about-content {
@@ -184,7 +184,7 @@ const clearData = async () => {
 .app-header {
   text-align: center;
   padding: 40px 20px 30px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--fv-primary) 0%, var(--fv-primary-deep) 100%);
 }
 
 .app-icon {
@@ -225,13 +225,13 @@ const clearData = async () => {
 .section-title {
   font-size: 15px;
   font-weight: 600;
-  color: #333;
+  color: var(--fv-ink);
   margin: 0 0 12px;
 }
 
 .section-desc {
   font-size: 14px;
-  color: #666;
+  color: var(--fv-ink-2);
   line-height: 1.6;
   margin: 0;
 }
@@ -244,13 +244,13 @@ const clearData = async () => {
 
 .repo-link {
   font-size: 12px;
-  color: #667eea;
+  color: var(--fv-primary);
 }
 
 .footer {
   text-align: center;
   padding: 30px 20px;
-  color: #999;
+  color: var(--fv-ink-3);
   font-size: 12px;
 }
 
@@ -259,6 +259,6 @@ const clearData = async () => {
 }
 
 .license {
-  color: #bbb;
+  color: var(--fv-ink-4);
 }
 </style>

@@ -19,7 +19,7 @@
             @click="flyToLocation(loc)"
           >
             <div class="loc-icon">
-            <van-icon name="location-o" size="20" color="#007aff" />
+            <van-icon name="location-o" size="20" color="var(--fv-primary)" />
           </div>
             <div class="loc-info">
               <div class="loc-name">{{ loc.name }}</div>
@@ -185,7 +185,7 @@ const addMarker = (loc) => {
 
   const icon = L.divIcon({
     className: 'custom-marker',
-    html: `<div style="width: 32px; height: 32px; background: #007aff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><span style="transform: rotate(45deg); color: white; font-size: 14px; font-weight: 600;">${loc.name.charAt(0)}</span></div>`,
+    html: `<div style="width: 32px; height: 32px; background: var(--fv-primary); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><span style="transform: rotate(45deg); color: white; font-size: 14px; font-weight: 600;">${loc.name.charAt(0)}</span></div>`,
     iconSize: [32, 32],
     iconAnchor: [16, 32]
   })
@@ -195,7 +195,7 @@ const addMarker = (loc) => {
     .bindPopup(`
       <div style="min-width: 140px; padding: 4px;">
         <h4 style="margin: 0 0 6px 0; font-size: 14px;">${loc.name}</h4>
-        <p style="margin: 0; font-size: 12px; color: #666;">
+        <p style="margin: 0; font-size: 12px; color: var(--fv-ink-2);">
           ${loc.year}年<br>${loc.description}
         </p>
       </div>
@@ -212,7 +212,7 @@ const drawMigrationRoute = () => {
   const latlngs = sortedLocations.map(loc => [loc.latitude, loc.longitude])
 
   routeLine = L.polyline(latlngs, {
-    color: '#007aff',
+    color: 'var(--fv-primary)',
     weight: 3,
     opacity: 0.7,
     dashArray: '8, 8'
@@ -278,7 +278,7 @@ onUnmounted(() => {
 <style scoped>
 .map-page {
   min-height: 100vh;
-  background: #f7f8fa;
+  background: var(--fv-surface-soft);
   display: flex;
   flex-direction: column;
 }
@@ -296,7 +296,7 @@ onUnmounted(() => {
 }
 
 .location-list {
-  background: white;
+  background: var(--fv-surface);
   border-radius: 16px 16px 0 0;
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
   max-height: 45vh;
@@ -307,13 +307,13 @@ onUnmounted(() => {
 
 .list-header {
   padding: 14px 16px 10px;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid var(--fv-border-soft);
 }
 
 .list-title {
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: var(--fv-ink);
 }
 
 .location-items {
@@ -331,7 +331,7 @@ onUnmounted(() => {
 }
 
 .location-item:active {
-  background: #f8f9ff;
+  background: var(--fv-primary-soft);
 }
 
 .location-item:last-child {
@@ -351,13 +351,13 @@ onUnmounted(() => {
 .loc-name {
   font-size: 14px;
   font-weight: 500;
-  color: #333;
+  color: var(--fv-ink);
   margin-bottom: 2px;
 }
 
 .loc-desc {
   font-size: 12px;
-  color: #999;
+  color: var(--fv-ink-3);
 }
 
 .fab {
@@ -367,7 +367,7 @@ onUnmounted(() => {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: #007aff;
+  background: var(--fv-primary);
   display: flex;
   align-items: center;
   justify-content: center;
