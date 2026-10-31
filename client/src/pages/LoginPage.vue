@@ -4,7 +4,24 @@
 
     <main class="login-card">
       <header class="brand">
-        <div class="seal" aria-hidden="true">家</div>
+        <!-- 品牌记号：回纹印（寓意世代绵延） -->
+        <svg class="seal" viewBox="0 0 100 100" aria-hidden="true">
+          <defs>
+            <linearGradient id="seal-plate" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#C65B3E" />
+              <stop offset="1" stop-color="#A03826" />
+            </linearGradient>
+          </defs>
+          <rect x="2" y="2" width="96" height="96" rx="20" fill="url(#seal-plate)" />
+          <polyline
+            points="30,72 72,72 72,28 28,28 28,59.5 59.5,59.5 59.5,40.5 40.5,40.5 40.5,47.5 47.5,47.5"
+            fill="none"
+            stroke="#FFF6EA"
+            stroke-width="6.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
         <h1 class="brand-title">家史馆</h1>
         <p class="brand-en">FAMILY VAULT</p>
         <p class="brand-slogan">趁老人还能说，把家族故事留下来</p>
@@ -372,20 +389,11 @@ const onForgotPassword = () => {
 }
 
 .seal {
+  display: block;
   width: 54px;
   height: 54px;
   margin: 0 auto 14px;
-  display: grid;
-  place-items: center;
-  font-family: 'Songti SC', 'STSong', 'SimSun', serif;
-  font-size: 28px;
-  font-weight: 700;
-  color: #fff6ea;
-  border-radius: 15px;
-  background: linear-gradient(150deg, #c25b3e 0%, #9c3826 100%);
-  box-shadow:
-    inset 0 0 0 2px rgba(255, 246, 234, 0.55),
-    0 10px 20px -12px rgba(156, 56, 38, 0.9);
+  filter: drop-shadow(0 10px 16px rgba(156, 56, 38, 0.35));
   transform: rotate(-2deg);
 }
 
