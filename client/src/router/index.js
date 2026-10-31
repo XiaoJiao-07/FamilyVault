@@ -6,13 +6,13 @@ const routes = [
     path: '/welcome',
     name: 'Welcome',
     component: () => import('@/pages/WelcomePage.vue'),
-    meta: { title: '欢迎', requiresAuth: false }
+    meta: { title: '欢迎', requiresAuth: false, hideTabbar: true }
   },
   {
     path: '/login',
     name: 'Login',
     component: () => import('@/pages/LoginPage.vue'),
-    meta: { title: '登录', requiresAuth: false }
+    meta: { title: '登录', requiresAuth: false, hideTabbar: true }
   },
   {
     path: '/',

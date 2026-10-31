@@ -2,6 +2,7 @@ import initSqlJs from 'sql.js'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import bcrypt from 'bcryptjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -153,17 +154,120 @@ export async function initDatabase() {
       FOREIGN KEY (author_id) REFERENCES family_members(id)
     );
 
+    -- 用户表
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      display_name TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'member',
+      invitation_code_used TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      last_login_at DATETIME
+    );
+
+    -- 邀请码表
+    CREATE TABLE IF NOT EXISTS invitation_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      created_by INTEGER,
+      max_uses INTEGER DEFAULT 1,
+      current_uses INTEGER DEFAULT 0,
+      expires_at DATETIME,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    );
+
+    -- 用户数据表（跨设备同步）
+    CREATE TABLE IF NOT EXISTS user_data (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      data_key TEXT NOT NULL,
+      value TEXT,
+      synced_at DATETIME,
+      UNIQUE (user_id, data_key),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
     -- 创建索引
     CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
     CREATE INDEX IF NOT EXISTS idx_relationships_from ON family_relationships(from_member_id);
     CREATE INDEX IF NOT EXISTS idx_relationships_to ON family_relationships(to_member_id);
     CREATE INDEX IF NOT EXISTS idx_capsules_unlock ON time_capsules(unlock_date, is_unlocked);
+    CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+    CREATE INDEX IF NOT EXISTS idx_codes_code ON invitation_codes(code);
   `)
+
+  // 种子数据：保证全新部署也能立即注册/登录，避免「没有邀请码也没有管理员」的死锁
+  await seedInitialData(database)
 
   // 保存数据库
   saveDatabase()
 
   console.log('✅ Database initialized successfully')
+}
+
+function countRows(database, sql) {
+  const result = database.exec(sql)
+  return result.length ? result[0].values[0][0] : 0
+}
+
+function createSeedCode(database, createdBy) {
+  const code = (process.env.INITIAL_INVITATION_CODE || 'FAMILY2026').toUpperCase()
+  const exists = countRows(
+    database,
+    `SELECT COUNT(*) FROM invitation_codes WHERE code = '${code.replace(/'/g, "''")}'`
+  )
+  if (exists) return code
+
+  database.run(
+    `INSERT INTO invitation_codes (code, created_by, max_uses, current_uses, expires_at, is_active)
+     VALUES (?, ?, ?, 0, NULL, 1)`,
+    [code, createdBy, 50]
+  )
+  return code
+}
+
+/**
+ * 种子数据：全新部署时创建管理员账号 + 初始邀请码，
+ * 避免「没有邀请码 → 无法注册 → 无法登录 → 无法生成邀请码」的死锁。
+ */
+async function seedInitialData(database) {
+  const userCount = countRows(database, 'SELECT COUNT(*) FROM users')
+  const adminUsername = process.env.ADMIN_USERNAME || 'admin'
+  const adminPassword = process.env.ADMIN_PASSWORD || 'FamilyVault@2026'
+
+  if (userCount > 0) {
+    // 已有用户但没有可用邀请码时，补一个，否则新成员无法加入
+    const activeCodes = countRows(
+      database,
+      'SELECT COUNT(*) FROM invitation_codes WHERE is_active = 1 AND (expires_at IS NULL OR expires_at > datetime("now"))'
+    )
+    if (activeCodes === 0) {
+      const code = createSeedCode(database, 1)
+      saveDatabase()
+      console.log(`🎟️  已补充初始邀请码：${code}`)
+    }
+    return
+  }
+
+  const passwordHash = await bcrypt.hash(adminPassword, 10)
+  database.run(
+    'INSERT INTO users (username, display_name, password_hash, role) VALUES (?, ?, ?, ?)',
+    [adminUsername, '家族管理员', passwordHash, 'admin']
+  )
+  const code = createSeedCode(database, 1)
+
+  console.log('')
+  console.log('┌──────────────────────────────────────────────┐')
+  console.log('│  首次部署已完成，已创建初始管理员账号        │')
+  console.log('└──────────────────────────────────────────────┘')
+  console.log(`   用户名：${adminUsername}`)
+  console.log(`   密  码：${adminPassword}`)
+  console.log(`   邀请码：${code}（可在注册页直接使用）`)
+  console.log('   ⚠️  生产环境请通过 ADMIN_USERNAME / ADMIN_PASSWORD 覆盖默认值')
+  console.log('')
 }
 
 export function closeDatabase() {

@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url'
 dotenv.config()
 
 // Import routes
+import authRoutes from './routes/auth.js'
+import dataRoutes from './routes/data.js'
 import interviewRoutes from './routes/interview.js'
 import graphRoutes from './routes/graph.js'
 import capsuleRoutes from './routes/capsule.js'
@@ -31,9 +33,11 @@ app.use(express.urlencoded({ extended: true }))
 app.use('/uploads', express.static(path.join(__dirname, '../../data/uploads')))
 
 // Initialize database
-initDatabase()
+await initDatabase()
 
 // Routes
+app.use('/api/auth', authRoutes)
+app.use('/api/data', dataRoutes)
 app.use('/api/interview', interviewRoutes)
 app.use('/api/graph', graphRoutes)
 app.use('/api/capsule', capsuleRoutes)

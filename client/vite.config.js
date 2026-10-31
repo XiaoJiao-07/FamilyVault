@@ -19,8 +19,8 @@ export default defineConfig({
         name: 'FamilyVault · 家史馆',
         short_name: '家史馆',
         description: '开源家庭记忆操作系统 - 用 AI 帮你留住家族故事',
-        theme_color: '#667eea',
-        background_color: '#f7f8fa',
+        theme_color: '#F5EEE3',
+        background_color: '#F5EEE3',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
@@ -69,6 +69,16 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      }
+    }
+  },
+  preview: {
+    host: '127.0.0.1',
     port: 5173,
     proxy: {
       '/api': {
