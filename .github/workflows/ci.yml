@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci --no-audit --no-fund
+
+      - name: 构建前端
+        run: npm run build
+
+      - name: 启动服务端
+        run: |
+          export JWT_SECRET=ci-secret
+          export ADMIN_PASSWORD=ci-test-password
+          node server/src/app.js &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:3000/api/health && break
+            sleep 1
+          done
+
+      - name: API 冒烟测试
+        run: |
+          set -e
+          echo "== health =="
+          curl -sf http://127.0.0.1:3000/api/health
+
+          echo "== 登录种子管理员 =="
+          TOKEN=$(curl -sf -X POST http://127.0.0.1:3000/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"ci-test-password"}' \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).token))")
+          test -n "$TOKEN"
+
+          echo "== 家庭信息 =="
+          curl -sf http://127.0.0.1:3000/api/family -H "Authorization: Bearer $TOKEN" | grep -q '"inviteCode"'
+
+          echo "== 写入家庭数据 =="
+          curl -sf -X PUT http://127.0.0.1:3000/api/data/smoke_test \
+            -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+            -d '{"value":{"ok":true}}'
+
+          echo "== 读回 =="
+          curl -sf http://127.0.0.1:3000/api/data/smoke_test \
+            -H "Authorization: Bearer $TOKEN" | grep -q '"ok":true'
+
+          echo "✅ 全部通过"

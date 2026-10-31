@@ -1,0 +1,24 @@
+services:
+  familyvault:
+    build: .
+    container_name: familyvault
+    ports:
+      - "3000:3000"
+    environment:
+      # 生产环境务必修改 JWT_SECRET（可用 openssl rand -hex 32 生成）
+      - JWT_SECRET=${JWT_SECRET:-please-change-me-in-production}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      # 不设置则首次启动时随机生成并打印在日志里（docker logs familyvault）
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - INITIAL_INVITATION_CODE=${INITIAL_INVITATION_CODE:-FAMILY2026}
+      # AI 采访（可选）：配置后走真实大模型，否则使用内置演示话题
+      - DOUBAO_API_KEY=${DOUBAO_API_KEY:-}
+      - DOUBAO_MODEL=${DOUBAO_MODEL:-}
+      - QWEN_API_KEY=${QWEN_API_KEY:-}
+      - QWEN_MODEL=${QWEN_MODEL:-}
+    volumes:
+      - familyvault-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  familyvault-data:

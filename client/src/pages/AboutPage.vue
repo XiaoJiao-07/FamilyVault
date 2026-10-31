@@ -6,10 +6,110 @@
       <!-- Logo 和名称 -->
       <div class="app-header">
         <div class="app-icon">
-          <span class="icon-text">FV</span>
+          <span class="icon-text">家</span>
         </div>
         <h1 class="app-name">FamilyVault</h1>
-        <p class="app-version">版本 1.0.0</p>
+        <p class="app-version">版本 1.1.0 · 家庭共享版</p>
+      </div>
+
+      <!-- 家庭空间 -->
+      <div v-if="loggedIn" class="section">
+        <h3 class="section-title">家庭空间</h3>
+
+        <div class="family-card">
+          <div class="family-head">
+            <div class="family-seal">家</div>
+            <div class="family-meta">
+              <h2 v-if="!renaming" class="family-name">{{ family?.name || '我的家庭' }}</h2>
+              <div v-else class="rename-row">
+                <input
+                  v-model="renameValue"
+                  class="rename-input"
+                  maxlength="30"
+                  @keyup.enter="submitRename"
+                />
+                <van-button size="mini" type="primary" @click="submitRename">保存</van-button>
+                <van-button size="mini" plain @click="renaming = false">取消</van-button>
+              </div>
+              <p class="family-sub">
+                {{ memberCount }} 位家人 · {{ roleLabel }}
+              </p>
+            </div>
+            <van-icon
+              v-if="isOwner"
+              name="edit"
+              class="family-edit"
+              @click="startRename"
+            />
+          </div>
+
+          <div class="member-row">
+            <div
+              v-for="m in family?.members || []"
+              :key="m.userId"
+              class="member-chip"
+              :class="{ me: m.userId === currentUserId }"
+            >
+              <span class="member-avatar">{{ initial(m.displayName) }}</span>
+              <span class="member-name">{{ m.displayName }}</span>
+              <span v-if="m.role === 'owner'" class="member-role">创建者</span>
+            </div>
+          </div>
+
+          <div class="invite-box">
+            <div class="invite-row">
+              <span class="invite-label">家庭邀请码</span>
+              <span class="invite-code">{{ family?.inviteCode || '—' }}</span>
+              <van-button
+                size="mini"
+                plain
+                type="primary"
+                class="invite-btn"
+                @click="copyInvite"
+              >
+                复制
+              </van-button>
+              <van-button
+                v-if="isOwner"
+                size="mini"
+                plain
+                class="invite-btn"
+                @click="rotateInvite"
+              >
+                重置
+              </van-button>
+            </div>
+            <p class="invite-hint">
+              把邀请码发给家人，他们用自己账号在下方输入，就能和你共用同一份家史。
+            </p>
+          </div>
+
+          <div class="join-row">
+            <van-field
+              v-model="joinCode"
+              placeholder="输入家人的邀请码"
+              maxlength="8"
+              class="join-field"
+            />
+            <van-button
+              size="small"
+              type="primary"
+              class="join-btn"
+              :loading="joining"
+              @click="joinFamily"
+            >
+              加入
+            </van-button>
+          </div>
+
+          <div class="sync-row">
+            <span class="sync-dot" :class="syncStatus" />
+            <span class="sync-text">{{ syncText }}</span>
+            <van-button size="mini" plain class="sync-btn" @click="syncNow">
+              立即同步
+            </van-button>
+          </div>
+        </div>
       </div>
 
       <!-- 应用介绍 -->
@@ -76,7 +176,7 @@
         <van-cell-group inset>
           <van-cell title="导出数据" label="备份家族数据为 JSON 文件" icon="down" is-link @click="handleExportData" />
           <van-cell title="导入数据" label="从备份文件恢复数据" icon="upgrade" is-link @click="importData" />
-          <van-cell title="清除数据" label="清除所有本地数据" icon="delete-o" is-link @click="clearData" />
+          <van-cell title="清除本机缓存" label="只清当前设备，云端数据不受影响" icon="delete-o" is-link @click="clearData" />
         </van-cell-group>
         <input
           ref="fileInput"
@@ -97,28 +197,159 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import exportUtils from '@/utils/export'
+import storage from '@/utils/storage'
+import { authAPI, familyAPI } from '@/utils/api'
 
 const fileInput = ref(null)
+const family = ref(null)
+const role = ref('member')
+const joinCode = ref('')
+const joining = ref(false)
+const syncStatus = ref(storage.status)
+const lastSyncedAt = ref(storage.lastSyncedAt)
+
+const loggedIn = computed(() => authAPI.isLoggedIn())
+const currentUserId = computed(() => authAPI.getCurrentUser()?.id)
+const isOwner = computed(() => role.value === 'owner')
+const memberCount = computed(() => family.value?.members?.length || 0)
+const roleLabel = computed(() => (isOwner.value ? '你是创建者' : '你是成员'))
+
+const initial = (name) => (name ? String(name).trim().slice(0, 1) : '家')
+
+const syncText = computed(() => {
+  if (syncStatus.value === 'syncing') return '正在同步…'
+  if (syncStatus.value === 'offline') return '离线，改动已存在本机'
+  if (syncStatus.value === 'error') return '同步失败，稍后自动重试'
+  if (!lastSyncedAt.value) return '已连接家庭云端'
+  const t = lastSyncedAt.value
+  const hh = String(t.getHours()).padStart(2, '0')
+  const mm = String(t.getMinutes()).padStart(2, '0')
+  return `已同步 · ${hh}:${mm}`
+})
+
+let unsubscribe = null
+
+onMounted(async () => {
+  unsubscribe = storage.subscribe(({ status, lastSyncedAt: at }) => {
+    syncStatus.value = status
+    lastSyncedAt.value = at
+  })
+
+  if (!loggedIn.value) return
+  const result = await familyAPI.get()
+  if (result.success) {
+    family.value = result.family
+    role.value = result.role || 'member'
+  }
+})
+
+onUnmounted(() => {
+  if (unsubscribe) unsubscribe()
+})
+
+const loadFamily = async () => {
+  const result = await familyAPI.get()
+  if (result.success) {
+    family.value = result.family
+    role.value = result.role || 'member'
+  }
+}
+
+const copyInvite = async () => {
+  const code = family.value?.inviteCode
+  if (!code) return
+  try {
+    await navigator.clipboard.writeText(code)
+    showToast('邀请码已复制')
+  } catch {
+    showToast(`邀请码：${code}`)
+  }
+}
+
+const rotateInvite = async () => {
+  try {
+    await showConfirmDialog({
+      title: '重置邀请码',
+      message: '旧邀请码会立即失效，已加入的家人不受影响。确定重置吗？'
+    })
+  } catch {
+    return
+  }
+  const result = await familyAPI.rotateInvite()
+  if (result.success) {
+    family.value = result.family
+    showToast('已生成新邀请码')
+  } else {
+    showToast(result.message)
+  }
+}
+
+const renameFamily = () => {
+  startRename()
+}
+
+const renaming = ref(false)
+const renameValue = ref('')
+
+const startRename = () => {
+  renameValue.value = family.value?.name || ''
+  renaming.value = true
+}
+
+const submitRename = async () => {
+  const name = renameValue.value.trim()
+  if (!name) {
+    showToast('家庭名不能为空')
+    return
+  }
+  const result = await familyAPI.rename(name)
+  if (result.success) {
+    family.value = result.family
+    renaming.value = false
+    showToast('已更新家庭名')
+  } else {
+    showToast(result.message)
+  }
+}
+
+const joinFamily = async () => {
+  const code = joinCode.value.trim().toUpperCase()
+  if (!code) {
+    showToast('请输入邀请码')
+    return
+  }
+  joining.value = true
+  try {
+    const result = await familyAPI.join(code)
+    if (!result.success) {
+      showToast(result.message)
+      return
+    }
+    family.value = result.family
+    role.value = 'member'
+    joinCode.value = ''
+    showToast('已加入家庭，正在同步家史…')
+    await storage.syncNow()
+    window.location.reload()
+  } finally {
+    joining.value = false
+  }
+}
+
+const syncNow = async () => {
+  await storage.syncNow()
+  showToast(syncStatus.value === 'offline' ? '网络不可用，稍后再试' : '已同步')
+}
 
 const openGitHub = () => {
   window.open('https://github.com/xiaoJiao-07/FamilyVault', '_blank')
 }
 
 const handleExportData = () => {
-  // 收集所有本地数据
-  const familyData = {
-    members: JSON.parse(localStorage.getItem('familyMembers') || '[]'),
-    stories: JSON.parse(localStorage.getItem('familyStories') || '[]'),
-    locations: JSON.parse(localStorage.getItem('memoryLocations') || '[]'),
-    capsules: JSON.parse(localStorage.getItem('timeCapsules') || '[]'),
-    heirlooms: JSON.parse(localStorage.getItem('heirlooms') || '[]'),
-    interviews: JSON.parse(localStorage.getItem('interviews') || '[]')
-  }
-
-  exportUtils.exportFullPackage(familyData)
+  exportUtils.exportFullPackage(storage.getAll())
   showToast('数据已导出')
 }
 
@@ -132,21 +363,12 @@ const handleFileSelect = async (event) => {
 
   try {
     const data = await exportUtils.importFromJSON(file)
-
-    // 保存到 localStorage
-    if (data.members) localStorage.setItem('familyMembers', JSON.stringify(data.members))
-    if (data.stories) localStorage.setItem('familyStories', JSON.stringify(data.stories))
-    if (data.locations) localStorage.setItem('memoryLocations', JSON.stringify(data.locations))
-    if (data.capsules) localStorage.setItem('timeCapsules', JSON.stringify(data.capsules))
-    if (data.heirlooms) localStorage.setItem('heirlooms', JSON.stringify(data.heirlooms))
-    if (data.interviews) localStorage.setItem('interviews', JSON.stringify(data.interviews))
-
+    storage.setAll(data)
     showToast('数据导入成功')
   } catch (err) {
     showToast('导入失败：' + err.message)
   }
 
-  // 重置 input
   event.target.value = ''
 }
 
@@ -154,20 +376,14 @@ const clearData = async () => {
   try {
     await showConfirmDialog({
       title: '确认清除',
-      message: '这将清除所有本地数据，且无法恢复。建议先导出备份。确定要清除吗？'
+      message: '仅清除当前设备的缓存，云端与家人的数据不受影响，下次打开会自动拉回。建议先导出备份。'
     })
-
-    localStorage.removeItem('familyMembers')
-    localStorage.removeItem('familyStories')
-    localStorage.removeItem('memoryLocations')
-    localStorage.removeItem('timeCapsules')
-    localStorage.removeItem('heirlooms')
-    localStorage.removeItem('interviews')
-
-    showToast('数据已清除')
   } catch {
-    // 用户取消
+    return
   }
+
+  storage.clear()
+  showToast('本机缓存已清除')
 }
 </script>
 
@@ -184,15 +400,17 @@ const clearData = async () => {
 .app-header {
   text-align: center;
   padding: 40px 20px 30px;
-  background: linear-gradient(135deg, var(--fv-primary) 0%, var(--fv-primary-deep) 100%);
+  background:
+    radial-gradient(120% 90% at 20% 0%, #c25b3e 0%, rgba(194, 91, 62, 0) 55%),
+    linear-gradient(160deg, #a8432c 0%, #8c3223 100%);
 }
 
 .app-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+  background: rgba(255, 246, 234, 0.14);
+  border: 1px solid rgba(255, 246, 234, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -200,21 +418,23 @@ const clearData = async () => {
 }
 
 .icon-text {
+  font-family: var(--fv-font-serif);
   font-size: 32px;
-  font-weight: 700;
-  color: white;
+  color: #fff6ea;
 }
 
 .app-name {
+  font-family: var(--fv-font-serif);
   font-size: 24px;
-  font-weight: 700;
-  color: white;
+  font-weight: 600;
+  color: #fff6ea;
   margin: 0 0 8px;
+  letter-spacing: 0.06em;
 }
 
 .app-version {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  color: rgba(255, 246, 234, 0.72);
   margin: 0;
 }
 
@@ -223,17 +443,243 @@ const clearData = async () => {
 }
 
 .section-title {
+  font-family: var(--fv-font-serif);
   font-size: 15px;
   font-weight: 600;
   color: var(--fv-ink);
   margin: 0 0 12px;
+  letter-spacing: 0.04em;
 }
 
 .section-desc {
   font-size: 14px;
   color: var(--fv-ink-2);
-  line-height: 1.6;
+  line-height: 1.7;
   margin: 0;
+}
+
+/* ---------- 家庭空间 ---------- */
+.family-card {
+  background: var(--fv-surface);
+  border: 1px solid var(--fv-border);
+  border-radius: 18px;
+  box-shadow: var(--fv-shadow-sm);
+  padding: 16px;
+}
+
+.family-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.family-seal {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: var(--fv-primary-soft);
+  border: 1px solid #f0cfc1;
+  color: var(--fv-primary);
+  font-family: var(--fv-font-serif);
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.family-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.family-name {
+  font-family: var(--fv-font-serif);
+  font-size: 17px;
+  color: var(--fv-ink);
+  margin: 0 0 2px;
+  letter-spacing: 0.03em;
+}
+
+.family-sub {
+  font-size: 12px;
+  color: var(--fv-ink-3);
+  margin: 0;
+}
+
+.rename-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rename-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--fv-border);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 14px;
+  color: var(--fv-ink);
+  background: var(--fv-surface);
+  font-family: inherit;
+}
+
+.rename-input:focus {
+  outline: none;
+  border-color: var(--fv-primary);
+}
+
+.family-edit {
+  color: var(--fv-ink-3);
+  font-size: 18px;
+  padding: 6px;
+}
+
+.member-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  background: var(--fv-surface-soft);
+  border: 1px solid var(--fv-border);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--fv-ink-2);
+}
+
+.member-chip.me {
+  border-color: #f0cfc1;
+  background: var(--fv-primary-soft);
+  color: var(--fv-primary);
+}
+
+.member-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--fv-brass-soft);
+  color: var(--fv-ink-2);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.member-chip.me .member-avatar {
+  background: var(--fv-primary);
+  color: #fff6ea;
+}
+
+.member-role {
+  font-size: 10px;
+  color: var(--fv-ink-4);
+}
+
+.invite-box {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--fv-surface-soft);
+  border: 1px dashed var(--fv-border);
+}
+
+.invite-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.invite-label {
+  font-size: 12px;
+  color: var(--fv-ink-3);
+}
+
+.invite-code {
+  font-family: var(--fv-font-serif);
+  font-size: 16px;
+  letter-spacing: 0.18em;
+  color: var(--fv-primary);
+}
+
+.invite-btn {
+  flex: none;
+}
+
+.invite-hint {
+  font-size: 11px;
+  color: var(--fv-ink-4);
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
+
+.join-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.join-field {
+  flex: 1;
+  border: 1px solid var(--fv-border);
+  border-radius: 10px;
+  padding: 6px 12px;
+  background: var(--fv-surface);
+}
+
+.join-btn {
+  flex: none;
+  border-radius: 10px;
+}
+
+.sync-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--fv-border-soft);
+}
+
+.sync-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #5f7a52;
+  flex: none;
+}
+
+.sync-dot.syncing {
+  background: var(--fv-brass);
+  animation: pulse 1s infinite;
+}
+
+.sync-dot.offline,
+.sync-dot.error {
+  background: var(--fv-primary);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.sync-text {
+  flex: 1;
+  font-size: 12px;
+  color: var(--fv-ink-3);
+}
+
+.sync-btn {
+  flex: none;
 }
 
 .tech-tags {

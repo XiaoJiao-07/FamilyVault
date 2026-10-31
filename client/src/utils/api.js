@@ -153,3 +153,42 @@ export const syncAPI = {
     }
   }
 }
+
+// 家庭空间（家人共享同一份家史库）
+export const familyAPI = {
+  async get() {
+    try {
+      const data = await request.get('/family')
+      return { success: true, family: data.data, role: data.role }
+    } catch (error) {
+      return { success: false, message: errorMessage(error, '获取家庭信息失败') }
+    }
+  },
+
+  async rename(name) {
+    try {
+      const data = await request.put('/family', { name })
+      return { success: true, family: data.data }
+    } catch (error) {
+      return { success: false, message: errorMessage(error, '改名失败') }
+    }
+  },
+
+  async join(code) {
+    try {
+      const data = await request.post('/family/join', { code })
+      return { success: true, family: data.data }
+    } catch (error) {
+      return { success: false, message: errorMessage(error, '加入失败') }
+    }
+  },
+
+  async rotateInvite() {
+    try {
+      const data = await request.post('/family/invite/rotate')
+      return { success: true, family: data.data }
+    } catch (error) {
+      return { success: false, message: errorMessage(error, '重置邀请码失败') }
+    }
+  }
+}

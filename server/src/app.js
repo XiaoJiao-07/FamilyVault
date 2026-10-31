@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 
 // Load environment variables
@@ -10,6 +11,7 @@ dotenv.config()
 // Import routes
 import authRoutes from './routes/auth.js'
 import dataRoutes from './routes/data.js'
+import familyRoutes from './routes/family.js'
 import interviewRoutes from './routes/interview.js'
 import graphRoutes from './routes/graph.js'
 import capsuleRoutes from './routes/capsule.js'
@@ -38,6 +40,7 @@ await initDatabase()
 // Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/data', dataRoutes)
+app.use('/api/family', familyRoutes)
 app.use('/api/interview', interviewRoutes)
 app.use('/api/graph', graphRoutes)
 app.use('/api/capsule', capsuleRoutes)
@@ -51,6 +54,17 @@ app.get('/api/health', (req, res) => {
     version: '1.0.0'
   })
 })
+
+// 生产环境：单端口托管前端构建产物（Docker / 一体化部署）
+const clientDist = path.join(__dirname, '../../client/dist')
+if (fs.existsSync(path.join(clientDist, 'index.html'))) {
+  app.use(express.static(clientDist))
+  // SPA fallback：非 /api 路由一律回 index.html
+  app.get(/^\/(?!api\/).*/, (req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'))
+  })
+  console.log('📦 已启用前端静态托管：', clientDist)
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {

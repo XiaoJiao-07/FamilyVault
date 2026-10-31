@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authAPI } from '@/utils/api'
+import storage from '@/utils/storage'
 
 const routes = [
   {
@@ -85,6 +86,8 @@ router.beforeEach(async (to, from, next) => {
     if (!authResult.loggedIn) {
       return next('/login')
     }
+    // 拉取家庭云端数据后再进入页面，保证首屏读到的是家人共享的最新内容
+    await storage.hydrate()
   }
 
   next()

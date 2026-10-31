@@ -1,7 +1,7 @@
 import express from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import { getDatabase, autoSave } from '../models/database.js'
+import { getDatabase, autoSave, createFamilyForUser } from '../models/database.js'
 
 const router = express.Router()
 
@@ -74,6 +74,21 @@ function publicUser(user) {
   }
 }
 
+/** 读取用户所属家庭，附带身份，用于登录/me 返回 */
+function familyOf(db, userId) {
+  const stmt = db.prepare(
+    'SELECT family_id, role FROM family_memberships WHERE user_id = ?'
+  )
+  try {
+    stmt.bind([userId])
+    if (!stmt.step()) return { familyId: null, familyRole: null }
+    const row = stmt.getAsObject()
+    return { familyId: row.family_id, familyRole: row.role }
+  } finally {
+    stmt.free()
+  }
+}
+
 export function authRequired(req, res, next) {
   const header = req.headers.authorization || ''
   const token = header.startsWith('Bearer ') ? header.slice(7).trim() : ''
@@ -142,7 +157,16 @@ router.post('/register', async (req, res) => {
     autoSave()
 
     const user = queryOne(db, 'SELECT * FROM users WHERE username = ?', [username])
-    return res.json({ success: true, token: signToken(user), user: publicUser(user) })
+    // 每个新账号自动拥有一个家庭，后续可用家庭邀请码加入别人的家
+    const family = createFamilyForUser(db, user)
+    autoSave()
+
+    return res.json({
+      success: true,
+      token: signToken(user),
+      user: { ...publicUser(user), ...familyOf(db, user.id) },
+      family
+    })
   } catch (error) {
     console.error('register failed:', error)
     return res.status(500).json({ success: false, message: '注册失败，请稍后重试' })
@@ -181,7 +205,11 @@ router.post('/login', async (req, res) => {
     db.run('UPDATE users SET last_login_at = datetime("now") WHERE id = ?', [user.id])
     autoSave()
 
-    return res.json({ success: true, token: signToken(user), user: publicUser(user) })
+    return res.json({
+      success: true,
+      token: signToken(user),
+      user: { ...publicUser(user), ...familyOf(db, user.id) }
+    })
   } catch (error) {
     console.error('login failed:', error)
     return res.status(500).json({ success: false, message: '登录失败，请稍后重试' })
@@ -201,7 +229,7 @@ router.get('/me', authRequired, async (req, res) => {
     if (!user) {
       return res.status(401).json({ success: false, message: '账号不存在' })
     }
-    return res.json({ success: true, user: publicUser(user) })
+    return res.json({ success: true, user: { ...publicUser(user), ...familyOf(db, user.id) } })
   } catch (error) {
     console.error('me failed:', error)
     return res.status(500).json({ success: false, message: '获取用户信息失败' })

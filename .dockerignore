@@ -1,0 +1,14 @@
+node_modules
+client/dist
+client/node_modules
+server/node_modules
+data
+*.sqlite
+*.db
+.git
+.github
+docs
+*.md
+.env
+.env.*
+npm-debug.log*
