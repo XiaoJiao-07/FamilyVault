@@ -4,7 +4,7 @@
 
     <main class="login-card">
       <header class="brand">
-        <!-- 品牌记号：回纹印（寓意世代绵延） -->
+        <!-- 品牌记号：葫芦印（壶中天地 · 纳福于家） -->
         <svg class="seal" viewBox="0 0 100 100" aria-hidden="true">
           <defs>
             <linearGradient id="seal-plate" x1="0" y1="0" x2="0" y2="1">
@@ -13,14 +13,14 @@
             </linearGradient>
           </defs>
           <rect x="2" y="2" width="96" height="96" rx="20" fill="url(#seal-plate)" />
-          <polyline
-            points="30,72 72,72 72,28 28,28 28,59.5 59.5,59.5 59.5,40.5 40.5,40.5 40.5,47.5 47.5,47.5"
-            fill="none"
-            stroke="#FFF6EA"
-            stroke-width="6.2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
+          <g fill="#FFF6EA">
+            <ellipse cx="50" cy="41.5" rx="11.5" ry="11.5" />
+            <ellipse cx="50" cy="62.75" rx="21.5" ry="15.25" />
+            <rect x="44.5" y="44" width="11" height="12" rx="2.8" />
+            <rect x="47.4" y="20.5" width="5.2" height="12.5" rx="1.3" />
+            <ellipse cx="50" cy="21.5" rx="4.5" ry="3" />
+          </g>
+          <line x1="42.5" y1="49.7" x2="57.5" y2="49.7" stroke="#AC3E2A" stroke-width="1.8" />
         </svg>
         <h1 class="brand-title">家史馆</h1>
         <p class="brand-en">FAMILY VAULT</p>
