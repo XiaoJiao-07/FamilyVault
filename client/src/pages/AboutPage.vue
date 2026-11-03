@@ -459,6 +459,9 @@ const onCloudAccount = async () => {
     showToast(`已连接 ${cloudUser.value.name || cloudUser.value.email || 'WorkBuddy 账号'}`)
     return
   }
+  // 未连接时也先弹说明，避免直接跳转让人误以为"没反应"
+  const ok = await ensureCloudAccount('连接云账号')
+  if (ok) return
   cloudConnecting.value = true
   try {
     const { url, error } = await startWorkBuddyLogin()
@@ -482,8 +485,9 @@ const ensureCloudAccount = async (actionLabel) => {
   try {
     await showConfirmDialog({
       title: '需要先连接云账号',
-      message: `${actionLabel}需要 WorkBuddy 云账号。点「去连接」会跳到授权页，授权后自动回到本页。`,
-      confirmButtonText: '去连接'
+      message: `${actionLabel}需要 WorkBuddy 云账号。\n点「去连接」会跳到授权页，授权后自动回到本页。`,
+      confirmButtonText: '去连接',
+      cancelButtonText: '取消'
     })
   } catch {
     return false

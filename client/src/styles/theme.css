@@ -125,6 +125,26 @@ body {
   border-radius: var(--fv-radius);
 }
 
+/* 弹窗：强化层级，避免白底弹窗与米白背景混成"一块白" */
+.van-dialog {
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -20px rgba(43, 33, 25, 0.55), 0 4px 12px rgba(43, 33, 25, 0.12);
+  overflow: hidden;
+}
+.van-dialog__header {
+  font-weight: 700;
+  color: var(--fv-ink);
+}
+.van-dialog__message {
+  color: var(--fv-ink-2);
+  font-size: 14px;
+  line-height: 1.7;
+  padding: 0 24px;
+}
+.van-dialog__footer {
+  border-top: 1px solid var(--fv-border-soft);
+}
+
 /* ---- 共享工具类 ---- */
 .fv-card {
   background: var(--fv-surface);
