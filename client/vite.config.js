@@ -15,36 +15,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icons/*.png'],
-      manifest: {
-        name: 'FamilyVault · 家史馆',
-        short_name: '家史馆',
-        description: '开源家庭记忆操作系统 - 用 AI 帮你留住家族故事',
-        theme_color: '#F5EEE3',
-        background_color: '#F5EEE3',
-        display: 'standalone',
-        orientation: 'portrait',
-        scope: '/',
-        // 托管网关要求分享参数；PWA 从桌面图标启动走 start_url，必须带上
-        start_url: '/?sharecode=E62LSHXLJY',
-        icons: [
-          {
-            src: 'icons/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'icons/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          },
-          {
-            src: 'icons/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
-      },
+      // manifest 改由 public/manifest.webmanifest 静态文件手动提供，
+      // 以便给 start_url / icons 路径统一带上 sharecode（否则托管网关会 403 拦截，导致 PWA 安装失败）
+      manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         runtimeCaching: [
