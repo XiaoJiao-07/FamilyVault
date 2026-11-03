@@ -106,8 +106,11 @@
               v-model="newCapsule.unlock_date"
               name="unlock_date"
               label="解锁日期"
-              placeholder="例如：2050-01-01"
+              placeholder="点击选择日期"
+              readonly
+              is-link
               required
+              @click="showCalendar = true"
             />
           </van-cell-group>
 
@@ -119,6 +122,15 @@
         </van-form>
       </div>
     </van-popup>
+
+    <!-- 解锁日期选择 -->
+    <van-calendar
+      v-model:show="showCalendar"
+      :min-date="new Date()"
+      title="选择解锁日期"
+      color="var(--fv-primary)"
+      @confirm="onConfirmDate"
+    />
   </div>
 </template>
 
@@ -129,6 +141,7 @@ import storage, { STORAGE_KEYS } from '@/utils/storage'
 
 const capsules = ref([])
 const showCreate = ref(false)
+const showCalendar = ref(false)
 
 const newCapsule = ref({
   from_person: '',
@@ -183,11 +196,17 @@ const loadCapsules = () => {
   const saved = storage.get(STORAGE_KEYS.TIME_CAPSULES, null)
   const data = saved || defaultCapsules
 
-  capsules.value = data.map(c => ({
-    ...c,
-    days_left: Math.max(0, Math.ceil((new Date(c.unlock_date) - new Date()) / (1000 * 60 * 60 * 24))),
-    can_unlock: new Date(c.unlock_date) <= new Date()
-  }))
+  const now = new Date()
+  capsules.value = data.map(c => {
+    const isDue = new Date(c.unlock_date) <= now
+    return {
+      ...c,
+      // 已解锁的保持解锁；到期未解锁的保持锁定但显示「立即解锁」按钮
+      is_unlocked: !!c.is_unlocked,
+      days_left: Math.max(0, Math.ceil((new Date(c.unlock_date) - now) / (1000 * 60 * 60 * 24))),
+      can_unlock: isDue && !c.is_unlocked
+    }
+  })
 
   // 如果是首次，保存到 localStorage
   if (!saved) {
@@ -225,6 +244,13 @@ const unlockCapsule = (id) => {
     saveCapsules()
     showToast('解锁成功')
   }
+}
+
+// 选择解锁日期
+const onConfirmDate = (date) => {
+  const d = new Date(date)
+  newCapsule.value.unlock_date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  showCalendar.value = false
 }
 
 onMounted(() => {

@@ -29,6 +29,18 @@
       </div>
     </div>
 
+    <!-- 时光胶囊到期提醒 -->
+    <div v-if="capsuleDueCount > 0" class="capsule-alert" @click="$router.push('/capsule')">
+      <div class="capsule-alert__icon">
+        <van-icon name="clock-o" size="20" color="#b4442e" />
+      </div>
+      <div class="capsule-alert__text">
+        <div class="capsule-alert__title">有 {{ capsuleDueCount }} 颗时光胶囊到期待开启</div>
+        <div class="capsule-alert__desc">来自家人的心意，点此查看</div>
+      </div>
+      <van-icon name="arrow" color="#b4442e" size="16" />
+    </div>
+
     <!-- 功能入口网格 -->
     <div class="feature-grid">
       <div class="feature-card" @click="$router.push('/interview')">
@@ -172,12 +184,14 @@ import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
 import { authAPI } from '@/utils/api'
+import { checkDueCapsules } from '@/utils/capsule'
 
 const router = useRouter()
 const currentUser = ref(null)
 const showInviteCode = ref(false)
 const generatedCode = ref('')
 const generating = ref(false)
+const capsuleDueCount = ref(0)
 
 const logout = async () => {
   await authAPI.logout()
@@ -242,6 +256,8 @@ const copyToClipboard = (text) => {
 onMounted(() => {
   loadStats()
   currentUser.value = authAPI.getCurrentUser()
+  // 检查到期胶囊数量，用于首页提醒
+  capsuleDueCount.value = checkDueCapsules().dueCount
 })
 
 const stats = ref({
@@ -598,6 +614,53 @@ const dailyQuote = ref({
 
 .empty-activities p {
   margin: 0;
+}
+
+/* 时光胶囊到期提醒 */
+.capsule-alert {
+  margin: 16px 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--fv-surface);
+  border: 1px solid #f0cfc1;
+  border-radius: 16px;
+  box-shadow: var(--fv-shadow-sm);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.capsule-alert:active {
+  transform: scale(0.98);
+}
+
+.capsule-alert__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--fv-primary-soft, #fbe9e3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.capsule-alert__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.capsule-alert__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fv-ink);
+  margin-bottom: 2px;
+}
+
+.capsule-alert__desc {
+  font-size: 12px;
+  color: var(--fv-ink-3);
 }
 
 .invite-code-panel {
