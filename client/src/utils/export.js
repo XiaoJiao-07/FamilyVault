@@ -40,14 +40,14 @@ export const exportData = {
   },
 
   // 导出完整数据包
-  exportFullPackage(familyData) {
+  exportFullPackage(familyData, filename) {
     const dataPackage = {
-      version: '1.0.0',
+      version: '1.1.0',
       exportDate: new Date().toISOString(),
       app: 'FamilyVault',
       data: familyData
     }
-    this.toJSON(dataPackage, `familyvault-backup-${Date.now()}`)
+    this.toJSON(dataPackage, filename || `familyvault-backup-${Date.now()}`)
   },
 
   // 导入数据

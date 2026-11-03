@@ -348,9 +348,33 @@ const openGitHub = () => {
   window.open('https://github.com/xiaoJiao-07/FamilyVault', '_blank')
 }
 
-const handleExportData = () => {
-  exportUtils.exportFullPackage(storage.getAll())
-  showToast('数据已导出')
+const handleExportData = async () => {
+  try {
+    showToast('正在从云端收集全量数据…')
+    // 云端全量（家史备份必须以云端为准，本机缓存可能不全）
+    const res = await fetch('/api/data', {
+      headers: {
+        'X-Auth-Token': localStorage.getItem('familyvault_auth_token') || '',
+        Authorization: `Bearer ${localStorage.getItem('familyvault_auth_token') || ''}`
+      }
+    })
+    let remote = {}
+    if (res.ok) {
+      const payload = await res.json()
+      for (const [key, entry] of Object.entries(payload.data || {})) {
+        remote[key] = entry?.value ?? null
+      }
+    }
+    // 合并本机（云端没有的键，如未上云的本地数据）
+    const merged = { ...storage.getAll(), ...remote }
+    const SKIP_KEYS = ['current_user', 'welcome_shown', 'dark_mode', 'search_history', 'user_settings']
+    const keys = Object.keys(merged).filter(k => !SKIP_KEYS.includes(k))
+    const stamp = new Date().toISOString().slice(0, 10)
+    exportUtils.exportFullPackage(Object.fromEntries(keys.map(k => [k, merged[k]])), `familyvault-backup-${stamp}`)
+    showToast(`已导出 ${keys.length} 类数据`)
+  } catch (err) {
+    showToast('导出失败：' + (err?.message || '网络异常'))
+  }
 }
 
 const importData = () => {
@@ -363,10 +387,27 @@ const handleFileSelect = async (event) => {
 
   try {
     const data = await exportUtils.importFromJSON(file)
+    const count = Object.keys(data).length
+    try {
+      await showConfirmDialog({
+        title: '确认恢复备份',
+        message: `将导入 ${count} 类数据，并覆盖云端同名数据（全家共享）。建议先导出当前数据留档。`
+      })
+    } catch {
+      return
+    }
     storage.setAll(data)
-    showToast('数据导入成功')
+    showToast('已导入，正在同步到云端…')
+    // 立即逐键显式上云：不能等防抖，也不触发 hydrate——
+    // 否则 hydrate 会拉到云端旧数据，把刚导入的内容覆盖回空（导入竞态）
+    const LOCAL_KEYS = ['welcome_shown', 'dark_mode', 'search_history', 'user_settings', 'current_user']
+    for (const [key, value] of Object.entries(data)) {
+      if (LOCAL_KEYS.includes(key)) continue
+      try { await storage.push(key, value) } catch { /* 单键失败不阻断 */ }
+    }
+    showToast('数据恢复完成')
   } catch (err) {
-    showToast('导入失败：' + err.message)
+    showToast('导入失败：' + (err?.message || '文件无效'))
   }
 
   event.target.value = ''
