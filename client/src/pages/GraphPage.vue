@@ -39,7 +39,7 @@
         <span>亲子</span>
       </div>
       <div v-if="viewMode === 'tree'" class="legend-item">
-        <span class="legend-line dashed"></span>
+        <span class="legend-wave">〜</span>
         <span>夫妻</span>
       </div>
     </div>
@@ -445,13 +445,14 @@ const onNodeClick = (member) => {
 }
 
 // ---------- 家谱树 ----------
-// 成员+关系 → 层级树：每个孩子优先挂父亲下，母亲以夫妻虚线关联
+// 成员+关系 → 家庭组层级树：夫妻并排组成一个「家庭组」节点，孩子挂在父母组下
 const buildFamilyTree = (nodes, edges) => {
   if (!nodes || !nodes.length) return null
 
   const byId = new Map(nodes.map(n => [n.id, n]))
   const fatherOf = new Map()
   const motherOf = new Map()
+  const spouseOf = new Map()
 
   edges.forEach(e => {
     const s = typeof e.source === 'object' ? e.source.id : e.source
@@ -459,54 +460,92 @@ const buildFamilyTree = (nodes, edges) => {
     if (!byId.has(s) || !byId.has(t)) return
     if (e.label === '父子' || e.label === '父女') fatherOf.set(t, s)
     else if (e.label === '母子' || e.label === '母女') motherOf.set(t, s)
+    else if (e.label === '夫妻' || e.label === '丈夫' || e.label === '妻子') {
+      if (!spouseOf.has(s)) spouseOf.set(s, t)
+      if (!spouseOf.has(t)) spouseOf.set(t, s)
+    }
   })
 
-  const mainParent = new Map()
+  // 家庭组：已婚两人合成一组（key 取双方 id 排序），未婚单人一组
+  const groupKey = (id) => {
+    const sp = spouseOf.get(id)
+    if (sp !== undefined && byId.has(sp)) return 'c' + [id, sp].sort((a, b) => (a > b ? 1 : -1)).join('-')
+    return 's' + id
+  }
+
+  const anchorOf = new Map()
   nodes.forEach(n => {
-    if (fatherOf.has(n.id)) mainParent.set(n.id, fatherOf.get(n.id))
-    else if (motherOf.has(n.id)) mainParent.set(n.id, motherOf.get(n.id))
+    const k = groupKey(n.id)
+    const cur = anchorOf.get(k)
+    if (cur === undefined || n.id < cur) anchorOf.set(k, n.id)
   })
 
-  const childrenOf = new Map()
-  mainParent.forEach((p, c) => {
-    if (!childrenOf.has(p)) childrenOf.set(p, [])
-    childrenOf.get(p).push(c)
+  // 孩子归属：父母互为配偶 → 挂该夫妻组；否则挂父/母所在组
+  const parentGroupOf = new Map()
+  nodes.forEach(n => {
+    const f = fatherOf.get(n.id)
+    const m = motherOf.get(n.id)
+    let pg = null
+    if (f !== undefined && m !== undefined && spouseOf.get(f) === m) pg = groupKey(f)
+    else if (f !== undefined) pg = groupKey(f)
+    else if (m !== undefined) pg = groupKey(m)
+    const k = groupKey(n.id)
+    if (pg && pg !== k) parentGroupOf.set(k, pg)
+  })
+
+  const childrenGroupsOf = new Map()
+  parentGroupOf.forEach((pg, k) => {
+    if (!childrenGroupsOf.has(pg)) childrenGroupsOf.set(pg, [])
+    childrenGroupsOf.get(pg).push(k)
   })
 
   const seen = new Set()
-  const build = (id) => {
-    if (seen.has(id)) return null
-    seen.add(id)
-    const node = byId.get(id)
-    if (!node) return null
-    const kids = (childrenOf.get(id) || []).map(build).filter(Boolean)
-    return { ...node, children: kids.length ? kids : undefined }
+  const buildGroup = (k) => {
+    if (seen.has(k)) return null
+    seen.add(k)
+    const anchor = byId.get(anchorOf.get(k))
+    if (!anchor) return null
+    const members = [anchor]
+    const spId = spouseOf.get(anchor.id)
+    if (spId !== undefined && byId.has(spId) && groupKey(spId) === k && spouseOf.get(spId) === anchor.id) {
+      members.push(byId.get(spId))
+    }
+    const kids = (childrenGroupsOf.get(k) || []).map(buildGroup).filter(Boolean)
+    return { key: k, members, virtual: false, children: kids.length ? kids : undefined }
   }
 
-  const roots = nodes.filter(n => !mainParent.has(n.id))
-  if (!roots.length) return build(nodes[0].id)
-  if (roots.length === 1) return build(roots[0].id)
-  return {
-    id: '__root__',
-    name: '始祖',
-    virtual: true,
-    gender: '',
-    children: roots.map(r => build(r.id)).filter(Boolean)
-  }
+  const roots = [...anchorOf.keys()].filter(k => {
+    const pg = parentGroupOf.get(k)
+    return pg === undefined || pg === k
+  })
+  const built = roots.map(buildGroup).filter(Boolean)
+  if (!built.length) return null
+  if (built.length === 1) return built[0]
+  return { key: '__root__', members: [], virtual: true, children: built }
 }
 
-// 渲染家谱树（纵向：先辈在上，后代在下）
+// 树卡片尺寸（px）
+const CARD_W = 104
+const CARD_H = 92
+const CARD_GAP = 18
+
+// 渲染家谱树（家庭组卡片式：夫妻并排，子代干线垂下）
 const renderTree = () => {
   const container = graphContainer.value
   if (!container) return
 
   const width = container.clientWidth
-  const height = Math.max(500, window.innerHeight - 220)
   d3.select(container).selectAll('*').remove()
 
   const treeData = buildFamilyTree(graphData.value.nodes, graphData.value.edges)
   if (!treeData) return
 
+  const root = d3.hierarchy(treeData)
+  d3.tree().nodeSize([272, 190])(root)
+
+  const xs = root.descendants().map(d => d.x)
+  const maxY = Math.max(...root.descendants().map(d => d.y))
+  const height = Math.max(560, maxY - 0 + 160)
   const svg = d3.select(container)
     .append('svg')
     .attr('width', width)
@@ -514,86 +553,148 @@ const renderTree = () => {
     .attr('viewBox', `0 0 ${width} ${height}`)
     .style('cursor', 'grab')
 
-  const root = d3.hierarchy(treeData)
-  d3.tree().nodeSize([76, 108])(root)
-
-  const xs = root.descendants().map(d => d.x)
-  const offsetX = width / 2 - (Math.min(...xs) + Math.max(...xs)) / 2
-
   const g = svg.append('g')
 
-  // 亲子连线
+  // 家庭组内卡片布局：返回每张卡片相对组锚点的左上角偏移
+  const memberCards = (d) => {
+    const n = d.data.members.length
+    const totalW = n * CARD_W + (n - 1) * CARD_GAP
+    const startX = -totalW / 2
+    return d.data.members.map((m, i) => ({
+      member: m,
+      x: startX + i * (CARD_W + CARD_GAP),
+      y: 0
+    }))
+  }
+
+  // 亲子干线：父组底部 → 水平母线 → 孩子组顶部
   g.append('g')
     .selectAll('path')
     .data(root.links())
     .enter()
     .append('path')
-    .attr('d', d3.linkVertical().x(d => d.x).y(d => d.y))
+    .attr('d', d => {
+      const px = d.source.x
+      const py = d.source.y + CARD_H
+      const cy = d.target.y
+      const by = py + (cy - py) / 2
+      return `M${px},${py} L${px},${by} L${d.target.x},${by} L${d.target.x},${cy}`
+    })
     .attr('fill', 'none')
-    .attr('stroke', '#D9C7AE')
-    .attr('stroke-width', 2)
+    .attr('stroke', '#C9BCA8')
+    .attr('stroke-width', 1.8)
+    .attr('opacity', 0.85)
 
-  // 夫妻虚线
-  const posOf = new Map(root.descendants().map(d => [d.data.id, d]))
-  const idOf = v => (typeof v === 'object' && v !== null ? v.id : v)
-  const couples = graphData.value.edges
-    .filter(e => e.label === '夫妻')
-    .map(e => ({ a: posOf.get(idOf(e.source)), b: posOf.get(idOf(e.target)) }))
-    .filter(c => c.a && c.b)
-
-  g.append('g')
-    .selectAll('line')
-    .data(couples)
-    .enter()
-    .append('line')
-    .attr('x1', d => d.a.x).attr('y1', d => d.a.y)
-    .attr('x2', d => d.b.x).attr('y2', d => d.b.y)
-    .attr('stroke', '#B4442E')
-    .attr('stroke-width', 1.5)
-    .attr('stroke-dasharray', '4 4')
-    .attr('opacity', 0.5)
-
-  // 节点
+  // 家庭组节点
   const node = g.append('g')
-    .selectAll('g')
+    .selectAll('g.group')
     .data(root.descendants())
     .enter()
     .append('g')
     .attr('transform', d => `translate(${d.x},${d.y})`)
-    .style('cursor', 'pointer')
-    .on('click', (event, d) => onNodeClick(d.data))
 
-  node.append('circle')
-    .attr('r', d => (d.data.virtual ? 16 : 26))
-    .attr('fill', d => {
-      if (d.data.virtual) return '#8E7C69'
-      return d.data.gender === '女' ? '#9C5B6B' : '#4A6B7C'
-    })
+  // 虚拟「族」根
+  const virtualRoot = node.filter(d => d.data.virtual)
+  virtualRoot.append('circle')
+    .attr('r', 22)
+    .attr('cy', CARD_H / 2)
+    .attr('fill', '#8E7C69')
     .attr('stroke', '#FFFDF8')
     .attr('stroke-width', 3)
-
-  node.append('text')
-    .text(d => (d.data.virtual ? '族' : d.data.name.charAt(0)))
+  virtualRoot.append('text')
+    .text('族')
     .attr('text-anchor', 'middle')
-    .attr('dy', 5)
-    .attr('font-size', d => (d.data.virtual ? '13px' : '15px'))
+    .attr('y', CARD_H / 2 + 5)
+    .attr('font-size', '14px')
     .attr('font-weight', '600')
     .attr('fill', 'white')
 
-  node.append('text')
-    .text(d => (d.data.virtual ? '' : d.data.name))
+  // 卡片（虚拟根无成员）
+  const card = node.filter(d => !d.data.virtual && d.data.members.length)
+    .append('g')
+    .selectAll('g.card')
+    .data(d => memberCards(d))
+    .enter()
+    .append('g')
+    .attr('transform', c => `translate(${c.x},${c.y})`)
+    .style('cursor', 'pointer')
+    .on('click', (event, c) => onNodeClick(c.member))
+
+  const isMale = c => c.member.gender !== '女'
+  const scaleX = c => (c.member.name || '').charAt(0)
+
+  card.append('rect')
+    .attr('width', CARD_W)
+    .attr('height', CARD_H)
+    .attr('rx', 10)
+    .attr('fill', c => (isMale(c) ? '#EDF3FB' : '#FBEDF3'))
+    .attr('stroke', c => (isMale(c) ? '#7BA3CF' : '#CD8AA4'))
+    .attr('stroke-width', 1.6)
+
+  // 姓氏圆徽章
+  card.append('circle')
+    .attr('cx', CARD_W / 2)
+    .attr('cy', 27)
+    .attr('r', 15)
+    .attr('fill', '#F3E2E0')
+    .attr('stroke', '#E2CCC6')
+    .attr('stroke-width', 1)
+  card.append('text')
+    .text(c => scaleX(c))
     .attr('text-anchor', 'middle')
-    .attr('dy', 44)
-    .attr('font-size', '11px')
+    .attr('x', CARD_W / 2)
+    .attr('y', 32)
+    .attr('font-size', '13px')
+    .attr('font-weight', '600')
+    .attr('fill', '#B4442E')
+
+  // 姓名
+  card.append('text')
+    .text(c => c.member.name)
+    .attr('text-anchor', 'middle')
+    .attr('x', CARD_W / 2)
+    .attr('y', 60)
+    .attr('font-size', '12.5px')
     .attr('font-weight', '500')
     .attr('fill', '#2B2119')
 
-  // 缩放 + 拖拽
+  // 出生年
+  card.append('text')
+    .text(c => (c.member.birthYear ? `${c.member.birthYear}年生` : ''))
+    .attr('text-anchor', 'middle')
+    .attr('x', CARD_W / 2)
+    .attr('y', 78)
+    .attr('font-size', '10px')
+    .attr('fill', '#8A7A66')
+
+  // 夫妻波浪线（两卡间隙中心）
+  const wave = node.filter(d => !d.data.virtual && d.data.members.length > 1)
+  wave.append('path')
+    .attr('d', () => {
+      const wy = CARD_H * 0.34
+      return `M-8,${wy} q4,-4 8,0 q4,4 8,0`
+    })
+    .attr('fill', 'none')
+    .attr('stroke', '#B4442E')
+    .attr('stroke-width', 1.6)
+    .attr('stroke-linecap', 'round')
+    .attr('opacity', 0.75)
+
+  // 缩放 + 拖拽（初始自适应：整棵树缩放到屏幕宽度内）
   const zoom = d3.zoom()
-    .scaleExtent([0.35, 2.2])
+    .scaleExtent([0.3, 2.2])
     .on('zoom', event => g.attr('transform', event.transform))
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const treeW = maxX - minX + 260
+  const initScale = Math.min(1, Math.max(0.3, (width - 24) / treeW))
   svg.call(zoom)
-  svg.call(zoom.transform, d3.zoomIdentity.translate(offsetX, 46))
+  svg.call(
+    zoom.transform,
+    d3.zoomIdentity
+      .translate(width / 2 - ((minX + maxX) / 2) * initScale, 60)
+      .scale(initScale)
+  )
 }
 
 // 切换视图
@@ -782,8 +883,11 @@ onUnmounted(() => {
   background: #E5D9C7;
 }
 
-.legend-line.dashed {
-  background: repeating-linear-gradient(90deg, #B4442E 0 4px, transparent 4px 8px);
+.legend-wave {
+  color: #B4442E;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .relations-head {
