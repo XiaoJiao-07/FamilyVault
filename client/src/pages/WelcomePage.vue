@@ -6,12 +6,40 @@
     </div>
 
     <!-- 轮播内容 -->
-    <van-swipe ref="swipeRef" class="welcome-swipe" @change="onSwipeChange">
+    <van-swipe ref="swipeRef" class="welcome-swipe" :show-indicator="false" @change="onSwipeChange">
       <!-- 第一屏：欢迎 -->
       <van-swipe-item>
         <div class="welcome-content">
           <div class="welcome-icon">
-            <van-icon name="home-o" size="64" color="white" />
+            <!-- 品牌记号：玉璧·传家（红绳系璧） -->
+            <svg class="jade-logo" viewBox="0 0 100 100" aria-hidden="true">
+              <defs>
+                <radialGradient id="jade-plate-welcome" cx="0.5" cy="0.42" r="0.72">
+                  <stop offset="0" stop-color="#BFD2C4" />
+                  <stop offset="1" stop-color="#82A08E" />
+                </radialGradient>
+              </defs>
+              <!-- 玉环：外圆 + 内孔 -->
+              <circle cx="50" cy="50" r="33" fill="url(#jade-plate-welcome)" stroke="#608270" stroke-width="2.5" />
+              <circle cx="50" cy="50" r="13" fill="#fffdf8" stroke="#608270" stroke-width="2" />
+              <!-- 乳钉纹 -->
+              <g fill="#D8E6DC">
+                <circle cx="69.9" cy="61.5" r="3.2" />
+                <circle cx="50" cy="73" r="3.2" />
+                <circle cx="30.1" cy="61.5" r="3.2" />
+                <circle cx="30.1" cy="38.5" r="3.2" />
+                <circle cx="50" cy="27" r="3.2" />
+                <circle cx="69.9" cy="38.5" r="3.2" />
+              </g>
+              <!-- 红绳：穿孔 + 结 + 双股穗 -->
+              <line x1="50" y1="6" x2="50" y2="65" stroke="#B4442E" stroke-width="4.5" stroke-linecap="round" />
+              <circle cx="50" cy="69" r="5" fill="#9E3626" />
+              <circle cx="50" cy="67.5" r="2" fill="#B4442E" />
+              <line x1="50" y1="73" x2="45.5" y2="88" stroke="#B4442E" stroke-width="2.5" stroke-linecap="round" />
+              <line x1="50" y1="73" x2="54.5" y2="88" stroke="#B4442E" stroke-width="2.5" stroke-linecap="round" />
+              <circle cx="45.5" cy="88.5" r="1.8" fill="#9E3626" />
+              <circle cx="54.5" cy="88.5" r="1.8" fill="#9E3626" />
+            </svg>
           </div>
           <h1 class="welcome-title">FamilyVault</h1>
           <h2 class="welcome-subtitle">家史馆</h2>
@@ -177,6 +205,11 @@ const startUsing = () => {
   height: 100vh;
 }
 
+/* 强制隐藏 van-swipe 自带指示器，只保留自定义圆点 */
+.welcome-swipe :deep(.van-swipe__indicators) {
+  display: none !important;
+}
+
 .welcome-content {
   height: 100%;
   display: flex;
@@ -290,12 +323,20 @@ const startUsing = () => {
 }
 
 .dot {
+  position: relative;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.4);
   cursor: pointer;
   transition: all 0.3s;
+}
+
+/* 扩大点击热区，方便手指点按 */
+.dot::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
 }
 
 .dot.active {
@@ -325,12 +366,19 @@ const startUsing = () => {
   width: 84px;
   height: 84px;
   border-radius: 22px;
-  background: linear-gradient(150deg, #c25b3e 0%, #9c3826 100%);
+  background: var(--fv-surface);
+  border: 1px solid var(--fv-border);
   box-shadow:
     inset 0 0 0 2px rgba(255, 246, 234, 0.5),
-    0 16px 30px -18px rgba(156, 56, 38, 0.95);
+    0 16px 30px -18px rgba(156, 56, 38, 0.55);
   backdrop-filter: none;
   margin-bottom: 26px;
+}
+
+.jade-logo {
+  width: 76px;
+  height: 76px;
+  display: block;
 }
 
 .welcome-title {
