@@ -13,6 +13,8 @@ const request = axios.create({
 request.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_KEY)
   if (token) {
+    // X-Auth-Token：部分托管网关会改写 Authorization，自定义头可稳定透传
+    config.headers['X-Auth-Token'] = token
     config.headers.Authorization = `Bearer ${token}`
   }
   return config

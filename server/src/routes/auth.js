@@ -90,8 +90,13 @@ function familyOf(db, userId) {
 }
 
 export function authRequired(req, res, next) {
-  const header = req.headers.authorization || ''
-  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : ''
+  // 优先读自定义头：部分托管网关会改写 Authorization，X-Auth-Token 可绕开
+  let token = req.headers['x-auth-token'] || ''
+  if (!token) {
+    const header = req.headers.authorization || ''
+    token = header.startsWith('Bearer ') ? header.slice(7).trim() : ''
+  }
+  token = String(token).trim()
   if (!token) {
     return res.status(401).json({ success: false, message: '请先登录' })
   }

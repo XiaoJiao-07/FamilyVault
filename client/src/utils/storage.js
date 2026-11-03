@@ -176,6 +176,7 @@ class StorageManager {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'X-Auth-Token': token(),
           Authorization: `Bearer ${token()}`
         },
         body: JSON.stringify({ value, baseVersion: meta[key] || null })
@@ -224,7 +225,7 @@ class StorageManager {
 
     try {
       const res = await fetch('/api/data', {
-        headers: { Authorization: `Bearer ${token()}` }
+        headers: { 'X-Auth-Token': token(), Authorization: `Bearer ${token()}` }
       })
       if (res.status === 401) {
         this.setStatus('offline')

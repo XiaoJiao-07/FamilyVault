@@ -42,3 +42,6 @@ data/uploads/
 # OS
 Thumbs.db
 Desktop.ini
+# Local secrets
+.env
+server/.env
