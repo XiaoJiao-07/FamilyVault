@@ -57,9 +57,20 @@ app.get('/api/health', (req, res) => {
 // 生产环境：单端口托管前端构建产物（Docker / 一体化部署）
 const clientDist = path.join(__dirname, '../../client/dist')
 if (fs.existsSync(path.join(clientDist, 'index.html'))) {
-  app.use(express.static(clientDist))
-  // SPA fallback：非 /api 路由一律回 index.html
+  // 带 hash 的静态资源可长缓存；index.html 禁止缓存，
+  // 否则发版后浏览器拿旧 html 引用已删除的 chunk，动态导入报错
+  app.use(express.static(clientDist, {
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+      } else {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+      }
+    }
+  }))
+  // SPA fallback：非 /api 路由一律回 index.html（对不存在的资源不缓存）
   app.get(/^\/(?!api\/|uploads\/).*/, (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
     res.sendFile(path.join(clientDist, 'index.html'))
   })
   console.log('📦 已启用前端静态托管：', clientDist)
