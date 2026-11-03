@@ -83,9 +83,13 @@
         </div>
 
         <div class="detail-actions">
-          <van-button type="primary" block round @click="showMemberDetail = false">
-            关闭
-          </van-button>
+          <div class="detail-actions-row">
+            <van-button type="default" round @click="openEditMember">编辑</van-button>
+            <van-button type="danger" round @click="onDeleteMember">删除</van-button>
+            <van-button type="primary" round @click="showMemberDetail = false">
+              关闭
+            </van-button>
+          </div>
         </div>
       </div>
     </van-popup>
@@ -98,7 +102,7 @@
       :style="{ height: '50%' }"
     >
       <div class="add-member-form">
-        <h3>添加家族成员</h3>
+        <h3>{{ editingId ? '编辑成员' : '添加家族成员' }}</h3>
         <van-form @submit="onAddMember">
           <van-cell-group inset>
             <van-field
@@ -136,7 +140,7 @@
           </van-cell-group>
           <div style="margin: 16px">
             <van-button round block type="primary" native-type="submit">
-              添加
+              {{ editingId ? '保存修改' : '添加' }}
             </van-button>
           </div>
         </van-form>
@@ -193,15 +197,15 @@
     </van-popup>
 
     <!-- 浮动按钮 -->
-    <div class="fab" @click="showAddMember = true">
+    <div class="fab" @click="openAddMember">
       <van-icon name="plus" size="24" color="white" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { showToast } from 'vant'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { showToast, showConfirmDialog } from 'vant'
 import * as d3 from 'd3'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
 
@@ -793,26 +797,96 @@ const onAddMember = async () => {
     return
   }
 
-  // 用时间戳生成 id，避免 Math.max 遇到非数字 id 产生 NaN
-  const newNode = {
-    id: Date.now(),
+  const fields = () => ({
     name: newMember.value.name,
     gender: newMember.value.gender || '未知',
     birthYear: parseInt(newMember.value.birthYear) || null,
     hometown: newMember.value.hometown,
     occupation: newMember.value.occupation,
     color: newMember.value.gender === '女' ? '#9C5B6B' : '#4A6B7C'
+  })
+
+  if (editingId.value != null) {
+    // 编辑：更新现有成员
+    const node = graphData.value.nodes.find(n => n.id === editingId.value)
+    if (node) Object.assign(node, fields())
+    showToast('已保存')
+  } else {
+    // 用时间戳生成 id，避免 Math.max 遇到非数字 id 产生 NaN
+    graphData.value.nodes.push({ id: Date.now(), ...fields() })
+    showToast('添加成功')
   }
 
-  graphData.value.nodes.push(newNode)
   saveGraphData() // 保存到 localStorage
-  showToast('添加成功')
   showAddMember.value = false
+  editingId.value = null
   newMember.value = { name: '', gender: '', birthYear: '', hometown: '', occupation: '' }
 
   await nextTick()
   if (viewMode.value === 'tree') renderTree()
   else renderGraph()
+}
+
+// ---------- 编辑 / 删除成员 ----------
+const editingId = ref(null)
+
+const openAddMember = () => {
+  editingId.value = null
+  newMember.value = { name: '', gender: '', birthYear: '', hometown: '', occupation: '' }
+  showAddMember.value = true
+}
+
+// 弹窗关闭（含点遮罩/取消）时清理编辑态
+watch(showAddMember, v => {
+  if (!v) editingId.value = null
+})
+
+const openEditMember = () => {
+  const m = selectedMember.value
+  if (!m) return
+  editingId.value = m.id
+  newMember.value = {
+    name: m.name || '',
+    gender: m.gender === '未知' ? '' : (m.gender || ''),
+    birthYear: m.birthYear || '',
+    hometown: m.hometown || '',
+    occupation: m.occupation || ''
+  }
+  showMemberDetail.value = false
+  showAddMember.value = true
+}
+
+const onDeleteMember = () => {
+  const m = selectedMember.value
+  if (!m) return
+  const relCount = graphData.value.edges.filter(e => {
+    const s = typeof e.source === 'object' ? e.source.id : e.source
+    const t = typeof e.target === 'object' ? e.target.id : e.target
+    return s === m.id || t === m.id
+  }).length
+
+  showConfirmDialog({
+    title: '删除成员',
+    message: relCount
+      ? `确定删除「${m.name}」吗？\n与 TA 相关的 ${relCount} 条关系也会一并删除。`
+      : `确定删除「${m.name}」吗？`,
+    confirmButtonText: '删除',
+    confirmButtonColor: '#B4442E'
+  })
+    .then(() => {
+      graphData.value.nodes = graphData.value.nodes.filter(n => n.id !== m.id)
+      graphData.value.edges = graphData.value.edges.filter(e => {
+        const s = typeof e.source === 'object' ? e.source.id : e.source
+        const t = typeof e.target === 'object' ? e.target.id : e.target
+        return s !== m.id && t !== m.id
+      })
+      saveGraphData()
+      showMemberDetail.value = false
+      selectedMember.value = null
+      showToast('已删除')
+      nextTick(() => (viewMode.value === 'tree' ? renderTree() : renderGraph()))
+    })
+    .catch(() => {})
 }
 
 onMounted(() => {
@@ -1057,6 +1131,15 @@ onUnmounted(() => {
 
 .detail-actions {
   padding: 16px;
+}
+
+.detail-actions-row {
+  display: flex;
+  gap: 10px;
+}
+
+.detail-actions-row .van-button {
+  flex: 1;
 }
 
 .add-member-form {
