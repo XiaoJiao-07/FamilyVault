@@ -218,6 +218,19 @@
         </van-cell-group>
       </div>
 
+      <!-- 隐私政策 -->
+      <div class="section">
+        <van-cell-group inset>
+          <van-cell
+            title="隐私政策"
+            label="了解我们如何保护你和家人的数据"
+            icon="shield-o"
+            is-link
+            @click="openPrivacy"
+          />
+        </van-cell-group>
+      </div>
+
       <!-- 版权信息 -->
       <div class="footer">
         <p>© 2026 FamilyVault. All rights reserved.</p>
@@ -250,6 +263,12 @@ const memberCount = computed(() => family.value?.members?.length || 0)
 const roleLabel = computed(() => (isOwner.value ? '你是创建者' : '你是成员'))
 
 const initial = (name) => (name ? String(name).trim().slice(0, 1) : '家')
+
+const openPrivacy = () => {
+  const base = window.location.origin
+  const share = window.location.search || '?sharecode=E62LSHXLJY'
+  window.open(`${base}/privacy.html${share}`, '_blank')
+}
 
 const syncText = computed(() => {
   if (syncStatus.value === 'syncing') return '正在同步…'
