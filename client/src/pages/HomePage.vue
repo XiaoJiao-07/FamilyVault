@@ -82,6 +82,14 @@
         <div class="feature-title">传家宝</div>
         <div class="feature-desc">保存家传菜谱和手艺</div>
       </div>
+
+      <div class="feature-card" @click="$router.push('/timeline')">
+        <div class="feature-icon-wrapper timeline-bg">
+          <van-icon name="underway-o" size="22" color="#7a6a52" />
+        </div>
+        <div class="feature-title">家族年轮</div>
+        <div class="feature-desc">一条时间线读懂家族</div>
+      </div>
     </div>
 
     <!-- 最近采访 -->
@@ -803,6 +811,10 @@ const dailyQuote = ref({
 
 .heirloom-bg {
   background: #f8efe0;
+}
+
+.timeline-bg {
+  background: #efe8d8;
 }
 
 .section-title {

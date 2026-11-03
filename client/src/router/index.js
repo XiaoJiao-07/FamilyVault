@@ -52,6 +52,12 @@ const routes = [
     meta: { title: '传家宝', requiresAuth: true }
   },
   {
+    path: '/timeline',
+    name: 'Timeline',
+    component: () => import('@/pages/TimelinePage.vue'),
+    meta: { title: '家族年轮', requiresAuth: true }
+  },
+  {
     path: '/about',
     name: 'About',
     component: () => import('@/pages/AboutPage.vue'),
