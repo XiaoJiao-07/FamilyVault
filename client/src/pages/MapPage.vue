@@ -46,6 +46,31 @@
       <div class="add-location-form">
         <h3>添加记忆地点</h3>
 
+        <!-- AI 智能识别 -->
+        <div class="ai-panel">
+          <div class="ai-panel__row">
+            <van-field
+              v-model="aiInput"
+              class="ai-input"
+              placeholder="例如：我爸 1980 年在武汉大学读书"
+              :border="false"
+              @keyup.enter="onAiResolve"
+            />
+            <van-button
+              class="ai-btn"
+              size="small"
+              round
+              type="primary"
+              :loading="aiBusy"
+              loading-text="识别中"
+              @click="onAiResolve"
+            >
+              智能识别
+            </van-button>
+          </div>
+          <p class="ai-panel__hint">一句话描述，AI 帮你补全地点、年份和坐标</p>
+        </div>
+
         <van-form @submit="onAddLocation">
           <van-cell-group inset>
             <van-field
@@ -89,9 +114,16 @@ import { showToast } from 'vant'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
+import { cloudChat, getCloudSession } from '@/services/cloud'
 
 const mapContainer = ref(null)
 const showAddLocation = ref(false)
+
+// ---- AI 智能识别 ----
+const aiInput = ref('')
+const aiBusy = ref(false)
+// 识别出的建议坐标（可能被用户后续手动修正）
+const aiCoords = ref(null)
 
 // 默认地点数据
 const defaultLocations = [
@@ -150,6 +182,76 @@ const newLocation = ref({
   year: '',
   description: ''
 })
+
+/**
+ * AI 智能识别：把一句话解析成结构化地点。
+ * 复用云端大模型（免密钥）；未连接云账号或调用失败时给出明确提示。
+ */
+const onAiResolve = async () => {
+  const raw = aiInput.value.trim()
+  if (!raw) {
+    showToast('先说一句地点描述')
+    return
+  }
+  if (aiBusy.value) return
+  aiBusy.value = true
+  try {
+    const session = await getCloudSession()
+    if (!session) {
+      showToast('AI 识别需要先连接云账号（登录页或关于页）')
+      return
+    }
+    const system = [
+      '你是 FamilyVault 记忆地图的地点解析助手。',
+      '把用户的一句话描述解析成一个记忆地点，只输出 JSON，不要任何解释或代码块标记。',
+      'JSON 字段：name(地点名，简短)、year(年份数字，没提到就 null)、description(一句话描述)、latitude(纬度数字)、longitude(经度数字)。',
+      '经纬度按你对中国城市的常识给出城市中心附近的大致坐标即可，保留 4 位小数。',
+      '如果描述里没有明确地点，latitude/longitude 填 null。',
+      '示例输入"我爸1980年在武汉大学读书"应输出：{"name":"武汉大学","year":1980,"description":"爸爸在此读书","latitude":30.5433,"longitude":114.3567}'
+    ].join('\n')
+    const text = await cloudChat([
+      { role: 'system', content: system },
+      { role: 'user', content: raw }
+    ], { temperature: 0.2 })
+    const json = parseAiJson(text)
+    if (!json) {
+      showToast('没能识别出地点，请手动填写')
+      return
+    }
+    newLocation.value.name = json.name || ''
+    newLocation.value.year = json.year ? String(json.year) : ''
+    newLocation.value.description = json.description || ''
+    const lat = Number(json.latitude)
+    const lng = Number(json.longitude)
+    if (Number.isFinite(lat) && Number.isFinite(lng) && lat > -90 && lat < 90 && lng > -180 && lng < 180) {
+      aiCoords.value = { latitude: lat, longitude: lng }
+    } else {
+      aiCoords.value = null
+    }
+    showToast(aiCoords.value ? '已识别，可微调后保存' : '已识别（未定位，可手填坐标）')
+  } catch (err) {
+    console.warn('AI 地点识别失败', err)
+    showToast('识别失败，请手动填写')
+  } finally {
+    aiBusy.value = false
+  }
+}
+
+/** 从 LLM 输出中稳健地提取 JSON 对象 */
+function parseAiJson(text) {
+  if (!text) return null
+  const s = String(text).trim()
+  try {
+    return JSON.parse(s)
+  } catch { /* 继续尝试提取 */ }
+  const m = s.match(/\{[\s\S]*\}/)
+  if (!m) return null
+  try {
+    return JSON.parse(m[0])
+  } catch {
+    return null
+  }
+}
 
 let map = null
 let markers = []
@@ -243,13 +345,18 @@ const onAddLocation = () => {
     return
   }
 
+  // 坐标优先用 AI 识别结果，其次用当前地图中心（让落点可预期），不再随机
+  const center = map ? map.getCenter() : { lat: 30.5928, lng: 114.3055 }
+  const lat = aiCoords.value?.latitude ?? center.lat
+  const lng = aiCoords.value?.longitude ?? center.lng
+
   const newLoc = {
     id: Date.now(),
     name: newLocation.value.name,
     year: parseInt(newLocation.value.year) || new Date().getFullYear(),
     description: newLocation.value.description,
-    latitude: 30.5928 + (Math.random() - 0.5) * 0.1,
-    longitude: 114.3055 + (Math.random() - 0.5) * 0.1
+    latitude: lat,
+    longitude: lng
   }
 
   locations.value.push(newLoc)
@@ -257,9 +364,18 @@ const onAddLocation = () => {
   addMarker(newLoc)
   drawMigrationRoute()
 
+  // 飞到新地点，让用户看到落点
+  if (map) map.flyTo([lat, lng], 12, { duration: 0.8 })
+
   showToast('添加成功')
   showAddLocation.value = false
+  resetAddForm()
+}
+
+const resetAddForm = () => {
   newLocation.value = { name: '', year: '', description: '' }
+  aiInput.value = ''
+  aiCoords.value = null
 }
 
 onMounted(async () => {
@@ -390,6 +506,44 @@ onUnmounted(() => {
   font-size: 16px;
   text-align: center;
   font-weight: 600;
+}
+
+/* AI 智能识别面板 */
+.ai-panel {
+  margin: 0 16px 12px;
+  padding: 6px 12px 10px;
+  background: var(--fv-primary-soft, #fbf1ec);
+  border: 1px solid var(--fv-border-soft, #f0e2d8);
+  border-radius: 12px;
+}
+
+.ai-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-input {
+  flex: 1;
+  background: transparent;
+  padding: 0;
+}
+
+.ai-input :deep(.van-field__control) {
+  font-size: 13px;
+}
+
+.ai-btn {
+  flex-shrink: 0;
+  background: var(--fv-primary);
+  border-color: var(--fv-primary);
+}
+
+.ai-panel__hint {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--fv-ink-3, #9a8b7c);
+  line-height: 1.4;
 }
 
 /* 自定义标记样式 */
