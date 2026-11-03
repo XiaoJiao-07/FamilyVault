@@ -187,6 +187,34 @@
         />
       </div>
 
+      <!-- 云服务 -->
+      <div class="section">
+        <h3 class="section-title">云服务</h3>
+        <van-cell-group inset>
+          <van-cell
+            title="云账号"
+            :label="cloudUser ? `已连接 ${cloudUser.name || cloudUser.email || 'WorkBuddy 账号'}` : '未连接，连接后可云备份与云存储'"
+            icon="friends-o"
+            is-link
+            @click="onCloudAccount"
+          />
+          <van-cell
+            title="备份到云端"
+            :label="cloudBackupAt ? `上次备份：${cloudBackupAt}` : '把家族数据存一份到你的云账号'"
+            icon="cloud"
+            is-link
+            @click="handleCloudBackup"
+          />
+          <van-cell
+            title="从云端恢复"
+            :label="cloudBackupAt ? `恢复 ${cloudBackupAt} 的备份` : '云端暂无备份'"
+            icon="replay"
+            is-link
+            @click="handleCloudRestore"
+          />
+        </van-cell-group>
+      </div>
+
       <!-- 版权信息 -->
       <div class="footer">
         <p>© 2026 FamilyVault. All rights reserved.</p>
@@ -202,6 +230,7 @@ import { showToast, showConfirmDialog } from 'vant'
 import exportUtils from '@/utils/export'
 import storage from '@/utils/storage'
 import { authAPI, familyAPI } from '@/utils/api'
+import { getCloudSession, saveCloudBackup, loadCloudBackup, startWorkBuddyLogin } from '@/services/cloud'
 
 const fileInput = ref(null)
 const family = ref(null)
@@ -244,6 +273,7 @@ onMounted(async () => {
     family.value = result.family
     role.value = result.role || 'member'
   }
+  refreshCloudState()
 })
 
 onUnmounted(() => {
@@ -348,32 +378,128 @@ const openGitHub = () => {
   window.open('https://github.com/xiaoJiao-07/FamilyVault', '_blank')
 }
 
+// 汇总一份完整备份数据：以云端为准，补上本机独有键
+const collectBackupData = async () => {
+  const res = await fetch('/api/data', {
+    headers: {
+      'X-Auth-Token': localStorage.getItem('familyvault_auth_token') || '',
+      Authorization: `Bearer ${localStorage.getItem('familyvault_auth_token') || ''}`
+    }
+  })
+  let remote = {}
+  if (res.ok) {
+    const payload = await res.json()
+    for (const [key, entry] of Object.entries(payload.data || {})) {
+      remote[key] = entry?.value ?? null
+    }
+  }
+  // 合并本机（云端没有的键，如未上云的本地数据）
+  const merged = { ...storage.getAll(), ...remote }
+  const SKIP_KEYS = ['current_user', 'welcome_shown', 'dark_mode', 'search_history', 'user_settings']
+  const keys = Object.keys(merged).filter(k => !SKIP_KEYS.includes(k))
+  return Object.fromEntries(keys.map(k => [k, merged[k]]))
+}
+
 const handleExportData = async () => {
   try {
     showToast('正在从云端收集全量数据…')
-    // 云端全量（家史备份必须以云端为准，本机缓存可能不全）
-    const res = await fetch('/api/data', {
-      headers: {
-        'X-Auth-Token': localStorage.getItem('familyvault_auth_token') || '',
-        Authorization: `Bearer ${localStorage.getItem('familyvault_auth_token') || ''}`
-      }
-    })
-    let remote = {}
-    if (res.ok) {
-      const payload = await res.json()
-      for (const [key, entry] of Object.entries(payload.data || {})) {
-        remote[key] = entry?.value ?? null
-      }
-    }
-    // 合并本机（云端没有的键，如未上云的本地数据）
-    const merged = { ...storage.getAll(), ...remote }
-    const SKIP_KEYS = ['current_user', 'welcome_shown', 'dark_mode', 'search_history', 'user_settings']
-    const keys = Object.keys(merged).filter(k => !SKIP_KEYS.includes(k))
+    const data = await collectBackupData()
     const stamp = new Date().toISOString().slice(0, 10)
-    exportUtils.exportFullPackage(Object.fromEntries(keys.map(k => [k, merged[k]])), `familyvault-backup-${stamp}`)
-    showToast(`已导出 ${keys.length} 类数据`)
+    exportUtils.exportFullPackage(data, `familyvault-backup-${stamp}`)
+    showToast(`已导出 ${Object.keys(data).length} 类数据`)
   } catch (err) {
     showToast('导出失败：' + (err?.message || '网络异常'))
+  }
+}
+
+/* ---- 云服务：云备份 / 云恢复 ---- */
+const cloudUser = ref(null)
+const cloudBackupAt = ref('')
+const cloudBusy = ref(false)
+
+const refreshCloudState = async () => {
+  try {
+    const session = await getCloudSession()
+    cloudUser.value = session?.user || null
+    if (!session) {
+      cloudBackupAt.value = ''
+      return
+    }
+    const row = await loadCloudBackup()
+    cloudBackupAt.value = row?.updated_at || row?.created_at
+      ? new Date(row.updated_at || row.created_at).toLocaleString('zh-CN', { hour12: false })
+      : ''
+  } catch {
+    cloudUser.value = null
+    cloudBackupAt.value = ''
+  }
+}
+
+const onCloudAccount = async () => {
+  if (cloudUser.value) {
+    showToast(`已连接 ${cloudUser.value.name || cloudUser.value.email || 'WorkBuddy 账号'}`)
+    return
+  }
+  const { url, error } = await startWorkBuddyLogin()
+  if (error) {
+    showToast(error)
+    return
+  }
+  location.assign(url)
+}
+
+const handleCloudBackup = async () => {
+  if (cloudBusy.value) return
+  cloudBusy.value = true
+  try {
+    if (!cloudUser.value) {
+      showToast('请先连接 WorkBuddy 云账号')
+      await onCloudAccount()
+      return
+    }
+    showToast('正在收集数据…')
+    const data = await collectBackupData()
+    await saveCloudBackup(data, '手动备份')
+    await refreshCloudState()
+    showToast(`已备份 ${Object.keys(data).length} 类数据到云端`)
+  } catch (err) {
+    showToast('云备份失败：' + (err?.message || '请检查网络'))
+  } finally {
+    cloudBusy.value = false
+  }
+}
+
+const handleCloudRestore = async () => {
+  if (cloudBusy.value) return
+  cloudBusy.value = true
+  try {
+    if (!cloudUser.value) {
+      showToast('请先连接 WorkBuddy 云账号')
+      await onCloudAccount()
+      return
+    }
+    const row = await loadCloudBackup()
+    if (!row?.payload) {
+      showToast('云端暂无备份')
+      return
+    }
+    const data = row.payload
+    await showConfirmDialog({
+      title: '确认云端恢复',
+      message: `将用云端备份覆盖当前 ${Object.keys(data).length} 类数据，建议先导出留档。`
+    })
+    storage.setAll(data)
+    showToast('已恢复，正在同步…')
+    const LOCAL_KEYS = ['welcome_shown', 'dark_mode', 'search_history', 'user_settings', 'current_user']
+    for (const [key, value] of Object.entries(data)) {
+      if (LOCAL_KEYS.includes(key)) continue
+      try { await storage.push(key, value) } catch { /* 单键失败不阻断 */ }
+    }
+    showToast('云端恢复完成')
+  } catch (err) {
+    if (err !== 'cancel') showToast('恢复失败：' + (err?.message || '请检查网络'))
+  } finally {
+    cloudBusy.value = false
   }
 }
 

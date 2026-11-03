@@ -223,6 +223,25 @@
         </van-form>
       </div>
 
+      <!-- 云服务：WorkBuddy 账号登录 -->
+      <div class="cloud-entry">
+        <div class="cloud-divider"><span>云服务</span></div>
+        <template v-if="cloudUser">
+          <p class="cloud-signed">
+            <van-icon name="success" />
+            <span>已连接 {{ cloudUser.name || cloudUser.email || 'WorkBuddy 账号' }}</span>
+          </p>
+          <button class="cloud-btn is-ghost" type="button" @click="onCloudSignOut">断开云账号</button>
+        </template>
+        <template v-else>
+          <button class="cloud-btn" type="button" :disabled="cloudLoading" @click="onCloudLogin">
+            <span class="cloud-btn-icon" aria-hidden="true">W</span>
+            <span>{{ cloudLoading ? '正在跳转…' : '使用 WorkBuddy 登录' }}</span>
+          </button>
+          <p class="cloud-hint">登录后可启用 AI 采访、照片云存储与家族数据云备份</p>
+        </template>
+      </div>
+
       <footer class="card-foot">
         <p class="foot-primary">
           <template v-if="activeTab === 1">还没有邀请码？联系家族管理员获取</template>
@@ -241,10 +260,11 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { authAPI } from '@/utils/api'
+import { startWorkBuddyLogin, getCloudSession, signOutCloud } from '@/services/cloud'
 
 const router = useRouter()
 
@@ -335,6 +355,45 @@ const onForgotPassword = () => {
     position: 'bottom',
     duration: 2500
   })
+}
+
+/* ---- 云服务：WorkBuddy 账号登录 ---- */
+const cloudUser = ref(null)
+const cloudLoading = ref(false)
+
+onMounted(async () => {
+  try {
+    const session = await getCloudSession()
+    cloudUser.value = session?.user || null
+  } catch { /* 未连接云账号 */ }
+})
+
+const onCloudLogin = async () => {
+  if (cloudLoading.value) return
+  cloudLoading.value = true
+  try {
+    const { url, error } = await startWorkBuddyLogin()
+    if (error) {
+      showToast(error)
+      return
+    }
+    // 必须同标签页跳转，window.open 会丢失本地 PKCE 凭据
+    location.assign(url)
+  } catch (err) {
+    showToast(err?.message || '无法发起云登录')
+  } finally {
+    cloudLoading.value = false
+  }
+}
+
+const onCloudSignOut = async () => {
+  try {
+    await signOutCloud()
+    cloudUser.value = null
+    showToast('已断开云账号')
+  } catch {
+    showToast('断开失败，请重试')
+  }
 }
 </script>
 
@@ -610,6 +669,96 @@ const onForgotPassword = () => {
 
 .link:hover {
   color: #9c3826;
+}
+
+/* 云服务入口 */
+.cloud-entry {
+  margin-top: 18px;
+}
+
+.cloud-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  color: #b3a28d;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+}
+
+.cloud-divider::before,
+.cloud-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e7dac8;
+}
+
+.cloud-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 46px;
+  border: 1px solid #cbb79b;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fdf7ec 0%, #f4ead9 100%);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: #4a3a2a;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+
+.cloud-btn:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 6px rgba(74, 52, 36, 0.12);
+}
+
+.cloud-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.cloud-btn.is-ghost {
+  background: transparent;
+  color: #a8977f;
+  font-weight: 500;
+}
+
+.cloud-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: linear-gradient(140deg, #7fa08c 0%, #5b7d69 100%);
+  color: #fffdf8;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cloud-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+  color: #a8977f;
+}
+
+.cloud-signed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #5b7d69;
 }
 
 /* 页脚 */

@@ -303,6 +303,7 @@ import { showToast } from 'vant'
 import speechRecognizer from '@/utils/speech'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
 import { interviewAPI } from '@/utils/api'
+import { cloudChat, getCloudSession } from '@/services/cloud'
 
 // 从 localStorage 加载采访对象
 const interviewees = ref(storage.get(STORAGE_KEYS.INTERVIEWEES, []))
@@ -502,24 +503,79 @@ const getNextTopic = () => {
     : '您还有什么想分享的故事吗？'
 }
 
-// 请求一轮 AI 回应（失败时退回本地话题库，保证离线也能用）
+// 云大模型提示词（与服务端保持一致的行为约束；system 必须是 messages[0]）
+const buildCloudSystem = (interviewee = {}) => {
+  const facts = []
+  if (interviewee.name) facts.push(`称呼：${interviewee.name}`)
+  if (interviewee.age) facts.push(`年龄：${interviewee.age} 岁`)
+  if (interviewee.hometown) facts.push(`籍贯：${interviewee.hometown}`)
+  if (interviewee.relationship) facts.push(`与记录者的关系：${interviewee.relationship}`)
+
+  return [
+    '你是 FamilyVault 的 AI 采访助手，正在帮一个家庭留存长辈的口述历史。',
+    `采访对象：${facts.length ? facts.join('；') : '一位家中长辈'}`,
+    '要求：',
+    '1. 先自然地回应对方刚说的内容（一句，具体，不要空洞的夸奖）',
+    '2. 再提出下一个问题，只问一个问题，具体、有画面感（食物、声音、气味、地点、人名）',
+    '3. 语气像晚辈陪长辈聊天，不说"您能详细说说吗"这种套话',
+    '4. 使用简体中文，总字数不超过 80 字，分成两段，不要加"AI："之类的前缀',
+    '5. 不要编造采访对象的经历，只基于他/她说过的话追问'
+  ].join('\n')
+}
+
+const toCloudMessages = (history = []) =>
+  history
+    .slice(-20)
+    .filter(m => m && m.text)
+    .map(m => ({
+      role: m.role === 'ai' ? 'assistant' : 'user',
+      content: String(m.text).slice(0, 1000)
+    }))
+
+/** 云大模型优先；未登录云账号或调用失败时返回 null，由调用方降级 */
+const requestCloudTurn = async (messagesPayload) => {
+  try {
+    const session = await getCloudSession()
+    if (!session) return null
+    const text = await cloudChat(messagesPayload, { temperature: 0.85 })
+    return text?.trim() || null
+  } catch (err) {
+    console.warn('[cloud] 大模型调用失败，尝试其它通道', err)
+    return null
+  }
+}
+
+// 请求一轮 AI 回应（云大模型 → 服务端 → 本地话题库）
 const requestAiTurn = async (userText) => {
   aiThinking.value = true
   scrollToBottom()
   let text = ''
 
-  try {
-    const result = await interviewAPI.turn({
-      interviewee: selectedInterviewee.value,
-      history: messages.value.slice(0, -1),
-      userText
-    })
-    if (result.success) {
-      text = result.data.text
-      applyAiMode(result.data.demo)
+  const baseMessages = toCloudMessages(messages.value.slice(0, -1))
+  const cloudMessages = [
+    { role: 'system', content: buildCloudSystem(selectedInterviewee.value) },
+    ...baseMessages,
+    { role: 'user', content: String(userText || '').slice(0, 2000) }
+  ]
+  const cloudText = await requestCloudTurn(cloudMessages)
+  if (cloudText) {
+    text = cloudText
+    applyAiMode(false)
+    aiLabel.value = '云端大模型'
+  } else {
+    try {
+      const result = await interviewAPI.turn({
+        interviewee: selectedInterviewee.value,
+        history: messages.value.slice(0, -1),
+        userText
+      })
+      if (result.success) {
+        text = result.data.text
+        applyAiMode(result.data.demo)
+      }
+    } catch (err) {
+      console.warn('AI 接口不可用，使用本地话题', err)
     }
-  } catch (err) {
-    console.warn('AI 接口不可用，使用本地话题', err)
   }
 
   aiThinking.value = false
@@ -546,14 +602,29 @@ const startInterview = async () => {
   aiThinking.value = true
 
   let text = ''
-  try {
-    const result = await interviewAPI.opening(selectedInterviewee.value)
-    if (result.success) {
-      text = result.data.text
-      applyAiMode(result.data.demo)
+
+  const cloudText = await requestCloudTurn([
+    { role: 'system', content: buildCloudSystem(selectedInterviewee.value) },
+    {
+      role: 'user',
+      content:
+        '采访刚开始。请用一句符合我们关系的招呼开场，然后问出第一个问题（例如童年、家乡、家常菜这类容易开口的话题）。'
     }
-  } catch (err) {
-    console.warn('AI 接口不可用，使用本地话题', err)
+  ])
+  if (cloudText) {
+    text = cloudText
+    applyAiMode(false)
+    aiLabel.value = '云端大模型'
+  } else {
+    try {
+      const result = await interviewAPI.opening(selectedInterviewee.value)
+      if (result.success) {
+        text = result.data.text
+        applyAiMode(result.data.demo)
+      }
+    } catch (err) {
+      console.warn('AI 接口不可用，使用本地话题', err)
+    }
   }
 
   aiThinking.value = false
@@ -808,6 +879,14 @@ onMounted(async () => {
   } catch {
     aiMode.value = 'demo'
   }
+
+  // 云账号可用时优先走云端大模型
+  try {
+    if (await getCloudSession()) {
+      aiMode.value = 'live'
+      aiLabel.value = '云端大模型'
+    }
+  } catch { /* 未连接云账号 */ }
 
   // 初始化默认采访对象（如果是首次使用且为空）
   if (interviewees.value.length === 0) {

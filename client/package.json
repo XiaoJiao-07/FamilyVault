@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tencent-ai/workbuddy-cloud-sdk": "^0.1.4-dev.ca27990.202610161713",
     "@vant/use": "^1.6.0",
     "axios": "^1.6.7",
     "d3": "^7.8.5",

@@ -265,8 +265,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import * as d3 from 'd3'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
-import { mediaAPI } from '@/utils/api'
-import { resolveMediaUrl } from '@/utils/media'
+import { resolveMediaUrl, uploadMedia } from '@/utils/media'
 
 const graphContainer = ref(null)
 const searchQuery = ref('')
@@ -992,14 +991,14 @@ const onPhotoSelect = async (event) => {
   if (!m) return
 
   showToast('正在上传…')
-  const result = await mediaAPI.uploadImage(file)
+  const result = await uploadMedia(file, 'image')
   if (!result.success) {
     showToast(result.message || '上传失败')
     event.target.value = ''
     return
   }
 
-  const filename = result.data?.filename || result.data?.url
+  const filename = result.filename
   if (!filename) {
     showToast('上传返回异常')
     event.target.value = ''
