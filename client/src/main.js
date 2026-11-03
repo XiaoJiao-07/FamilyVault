@@ -20,9 +20,19 @@ app.use(router)
 // OAuth 回调必须在任何路由守卫之前处理：回调落在站点根路径，
 // 被守卫打断会让一次性 code 失效，用户无法重试。
 async function bootstrap() {
+  let backToAbout = false
   try {
     const res = await handleCloudCallback()
     if (res?.error) console.warn('[cloud] 登录回调失败:', res.error)
+    if (res?.session) {
+      const url = new URL(location.href)
+      if (url.searchParams.get('cloudback') === '1') {
+        backToAbout = true
+        sessionStorage.setItem('fv_cloud_connected', '1')
+        url.searchParams.delete('cloudback')
+        history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+      }
+    }
   } catch (err) {
     console.warn('[cloud] 登录回调异常:', err)
   }
@@ -30,6 +40,11 @@ async function bootstrap() {
     await getCloudSession()
   } catch { /* 未登录是正常状态 */ }
   app.mount('#app')
+
+  // 云账号授权回来直接回「关于」页，用户能立刻看到连接结果
+  if (backToAbout) {
+    router.isReady().then(() => router.replace('/about'))
+  }
 }
 
 bootstrap()

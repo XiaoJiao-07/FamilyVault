@@ -63,6 +63,8 @@ export async function startWorkBuddyLogin() {
   const back = new URL(location.href)
   back.pathname = '/'
   for (const key of ['code', 'state', 'provider', 'error']) back.searchParams.delete(key)
+  // 标记本次是云账号授权，回调成功后自动回到「关于」页
+  back.searchParams.set('cloudback', '1')
   try {
     const { data, error } = await withTimeout(
       cloud.auth.signInWithOAuth({

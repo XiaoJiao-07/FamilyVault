@@ -196,6 +196,7 @@
             :label="cloudUser ? `已连接 ${cloudUser.name || cloudUser.email || 'WorkBuddy 账号'}` : '未连接，连接后可云备份与云存储'"
             icon="friends-o"
             is-link
+            :value="cloudConnecting ? '跳转中…' : (cloudUser ? '已连接' : '去连接')"
             @click="onCloudAccount"
           />
           <van-cell
@@ -203,6 +204,7 @@
             :label="cloudBackupAt ? `上次备份：${cloudBackupAt}` : '把家族数据存一份到你的云账号'"
             icon="cloud"
             is-link
+            :value="cloudBusy ? '备份中…' : ''"
             @click="handleCloudBackup"
           />
           <van-cell
@@ -210,6 +212,7 @@
             :label="cloudBackupAt ? `恢复 ${cloudBackupAt} 的备份` : '云端暂无备份'"
             icon="replay"
             is-link
+            :value="cloudRestoring ? '恢复中…' : ''"
             @click="handleCloudRestore"
           />
         </van-cell-group>
@@ -273,7 +276,20 @@ onMounted(async () => {
     family.value = result.family
     role.value = result.role || 'member'
   }
-  refreshCloudState()
+  await refreshCloudState()
+
+  // 刚从 WorkBuddy 授权返回：明确告知连接结果
+  if (sessionStorage.getItem('fv_cloud_connected') === '1') {
+    sessionStorage.removeItem('fv_cloud_connected')
+    if (cloudUser.value) {
+      showToast({
+        message: `云账号已连接${cloudUser.value.name ? '：' + cloudUser.value.name : ''}`,
+        duration: 2500
+      })
+    } else {
+      showToast({ message: '授权已完成但未取到会话，请重新连接一次', duration: 3000 })
+    }
+  }
 })
 
 onUnmounted(() => {
@@ -416,6 +432,8 @@ const handleExportData = async () => {
 const cloudUser = ref(null)
 const cloudBackupAt = ref('')
 const cloudBusy = ref(false)
+const cloudRestoring = ref(false)
+const cloudConnecting = ref(false)
 
 const refreshCloudState = async () => {
   try {
@@ -436,48 +454,67 @@ const refreshCloudState = async () => {
 }
 
 const onCloudAccount = async () => {
+  if (cloudConnecting.value) return
   if (cloudUser.value) {
     showToast(`已连接 ${cloudUser.value.name || cloudUser.value.email || 'WorkBuddy 账号'}`)
     return
   }
-  const { url, error } = await startWorkBuddyLogin()
-  if (error) {
-    showToast(error)
-    return
+  cloudConnecting.value = true
+  try {
+    const { url, error } = await startWorkBuddyLogin()
+    if (error) {
+      showToast(error)
+      cloudConnecting.value = false
+      return
+    }
+    showToast('正在前往 WorkBuddy 授权…')
+    // 同标签页跳转；授权完成后会自动回到本页
+    location.assign(url)
+  } catch (err) {
+    showToast(err?.message || '无法发起云登录')
+    cloudConnecting.value = false
   }
-  location.assign(url)
+}
+
+// 未连接时给出明确解释，再决定要不要去授权（避免"点了没反应"）
+const ensureCloudAccount = async (actionLabel) => {
+  if (cloudUser.value) return true
+  try {
+    await showConfirmDialog({
+      title: '需要先连接云账号',
+      message: `${actionLabel}需要 WorkBuddy 云账号。点「去连接」会跳到授权页，授权后自动回到本页。`,
+      confirmButtonText: '去连接'
+    })
+  } catch {
+    return false
+  }
+  await onCloudAccount()
+  return false
 }
 
 const handleCloudBackup = async () => {
   if (cloudBusy.value) return
+  if (!(await ensureCloudAccount('云备份'))) return
   cloudBusy.value = true
   try {
-    if (!cloudUser.value) {
-      showToast('请先连接 WorkBuddy 云账号')
-      await onCloudAccount()
-      return
-    }
-    showToast('正在收集数据…')
     const data = await collectBackupData()
+    const count = Object.keys(data).length
+    showToast({ message: `正在上传 ${count} 类数据…`, duration: 2000 })
     await saveCloudBackup(data, '手动备份')
     await refreshCloudState()
-    showToast(`已备份 ${Object.keys(data).length} 类数据到云端`)
+    showToast({ message: `已备份 ${count} 类数据到云端`, duration: 2000 })
   } catch (err) {
-    showToast('云备份失败：' + (err?.message || '请检查网络'))
+    showToast({ message: '云备份失败：' + (err?.message || '请检查网络'), duration: 3000 })
   } finally {
     cloudBusy.value = false
   }
 }
 
 const handleCloudRestore = async () => {
-  if (cloudBusy.value) return
-  cloudBusy.value = true
+  if (cloudRestoring.value) return
+  if (!(await ensureCloudAccount('云端恢复'))) return
+  cloudRestoring.value = true
   try {
-    if (!cloudUser.value) {
-      showToast('请先连接 WorkBuddy 云账号')
-      await onCloudAccount()
-      return
-    }
     const row = await loadCloudBackup()
     if (!row?.payload) {
       showToast('云端暂无备份')
@@ -499,7 +536,7 @@ const handleCloudRestore = async () => {
   } catch (err) {
     if (err !== 'cancel') showToast('恢复失败：' + (err?.message || '请检查网络'))
   } finally {
-    cloudBusy.value = false
+    cloudRestoring.value = false
   }
 }
 
