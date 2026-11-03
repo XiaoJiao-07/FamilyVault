@@ -24,7 +24,8 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
-        start_url: '/',
+        // 托管网关要求分享参数；PWA 从桌面图标启动走 start_url，必须带上
+        start_url: '/?sharecode=E62LSHXLJY',
         icons: [
           {
             src: 'icons/icon-192.png',
