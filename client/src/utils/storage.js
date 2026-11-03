@@ -189,9 +189,10 @@ class StorageManager {
 
       if (res.status === 409 && !retried) {
         const payload = await res.json()
-        // 家人已经改过：数组按 id 求并集，其余以服务端为准
+        // 家人已经改过：以本地最新修改为准（last-write-wins，用户刚编辑的内容不能丢），
+        // 同时并上服务端独有的记录
         const localValue = this.get(key, null)
-        const merged = mergeArrays(payload.data, localValue) ?? payload.data
+        const merged = mergeArrays(localValue, payload.data) ?? localValue
         localStorage.setItem(this.prefix + key, JSON.stringify(merged))
         const nextMeta = readMeta()
         nextMeta[key] = payload.version

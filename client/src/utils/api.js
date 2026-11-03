@@ -231,7 +231,10 @@ export const mediaAPI = {
     try {
       const form = new FormData()
       form.append('image', file)
-      const data = await request.post('/upload/image', form)
+      // 显式声明 multipart，避免实例默认的 application/json 破坏文件解析
+      const data = await request.post('/upload/image', form, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
       return { success: true, data: data.data }
     } catch (error) {
       return { success: false, message: errorMessage(error, '上传失败') }
@@ -243,7 +246,9 @@ export const mediaAPI = {
       const form = new FormData()
       form.append('audio', file)
       form.append('duration', String(duration))
-      const data = await request.post('/upload/audio', form)
+      const data = await request.post('/upload/audio', form, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
       return { success: true, data: data.data }
     } catch (error) {
       return { success: false, message: errorMessage(error, '上传失败') }
