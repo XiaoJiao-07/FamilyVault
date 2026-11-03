@@ -54,3 +54,4 @@ client/android/local.properties
 client/android/capacitor-cordova-android-plugins/build/
 client/android/app/release/
 client/android/app/src/main/assets/public/
+*.apk
