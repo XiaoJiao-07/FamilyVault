@@ -63,7 +63,8 @@
       <template v-else>
         <div v-if="searchResults.length === 0" class="empty-state">
           <van-icon name="search" size="48" color="#ddd" />
-          <p>未找到相关结果</p>
+          <p>未找到「{{ searchQuery }}」相关的内容</p>
+          <p class="empty-tip">试试其他关键词，或先去家族图谱、记忆地图、传家宝里记录一些故事</p>
         </div>
 
         <div v-else class="results-list">
@@ -94,6 +95,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import storage, { STORAGE_KEYS } from '@/utils/storage'
 
 const router = useRouter()
 const searchQuery = ref('')
@@ -104,82 +106,129 @@ const searchHistory = ref([])
 
 const hotTags = ['爷爷', '奶奶', '老家', '红烧肉', '结婚', '童年', '迁徙', '家训']
 
-// 模拟搜索数据
-const mockData = [
-  {
-    id: 1,
-    type: 'interview',
-    title: '爷爷的童年故事',
-    description: 'AI 采访 · 12 条对话',
-    icon: '👴',
-    color: 'linear-gradient(135deg, var(--fv-primary), var(--fv-primary-deep))',
-    category: '采访',
-    tagType: 'primary',
-    time: '昨天',
-    keywords: ['爷爷', '童年', '故事']
-  },
-  {
-    id: 2,
-    type: 'heirloom',
-    title: '奶奶的红烧肉',
-    description: '传家宝 · 菜谱',
-    icon: '👵',
-    color: 'linear-gradient(135deg, #e6b8c3, #c9737f)',
-    category: '传家宝',
-    tagType: 'danger',
-    time: '3天前',
-    keywords: ['奶奶', '红烧肉', '菜谱']
-  },
-  {
-    id: 3,
-    type: 'location',
-    title: '爷爷的老家',
-    description: '记忆地图 · 湖北武汉',
-    icon: '📍',
-    color: 'linear-gradient(135deg, #a9c6d6, #7fb3c4)',
-    category: '地图',
-    tagType: 'success',
-    time: '1周前',
-    keywords: ['爷爷', '老家', '湖北', '武汉']
-  },
-  {
-    id: 4,
-    type: 'member',
-    title: '爸爸',
-    description: '家族图谱 · 1978年生',
-    icon: '👨',
-    color: 'linear-gradient(135deg, #b7cfa4, #8fc9b4)',
-    category: '成员',
-    tagType: 'primary',
-    time: '2周前',
-    keywords: ['爸爸', '父亲']
-  },
-  {
-    id: 5,
-    type: 'capsule',
-    title: '给 2035 年的你',
-    description: '时光胶囊 · 未解锁',
-    icon: '💊',
-    color: 'linear-gradient(135deg, #fa709a, #fee140)',
-    category: '胶囊',
-    tagType: 'warning',
-    time: '1个月前',
-    keywords: ['未来', '胶囊']
-  }
-]
+// 结果配色与图标（沿用各模块既有主题色）
+const TYPE_META = {
+  member: { icon: '👤', color: 'linear-gradient(135deg, #b7cfa4, #8fc9b4)', category: '成员', tagType: 'primary' },
+  interview: { icon: '🎙️', color: 'linear-gradient(135deg, var(--fv-primary), var(--fv-primary-deep))', category: '采访', tagType: 'primary' },
+  location: { icon: '📍', color: 'linear-gradient(135deg, #a9c6d6, #7fb3c4)', category: '地图', tagType: 'success' },
+  heirloom: { icon: '🏺', color: 'linear-gradient(135deg, #e6c9a3, #c99a5b)', category: '传家宝', tagType: 'warning' },
+  capsule: { icon: '⏳', color: 'linear-gradient(135deg, #b9a8d8, #9c5b6b)', category: '胶囊', tagType: 'danger' }
+}
+
+// 相对时间（用于结果时间展示）
+const formatRelativeTime = (iso) => {
+  if (!iso) return ''
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return ''
+  const diff = Date.now() - t
+  const day = 86400000
+  if (diff < day) return '今天'
+  if (diff < 2 * day) return '昨天'
+  if (diff < 7 * day) return `${Math.floor(diff / day)}天前`
+  if (diff < 30 * day) return `${Math.floor(diff / (7 * day))}周前`
+  return `${Math.floor(diff / (30 * day))}个月前`
+}
+
+// 构建可搜索的真实数据索引
+const buildSearchIndex = () => {
+  const index = []
+  const members = storage.get(STORAGE_KEYS.FAMILY_MEMBERS, []) || []
+  const locations = storage.get(STORAGE_KEYS.MEMORY_LOCATIONS, []) || []
+  const capsules = storage.get(STORAGE_KEYS.TIME_CAPSULES, []) || []
+  const heirlooms = storage.get(STORAGE_KEYS.HEIRLOOMS, []) || []
+  const sessions = storage.get(STORAGE_KEYS.INTERVIEW_SESSIONS, []) || []
+
+  // 成员（含人生大事）
+  members.forEach(m => {
+    if (!m) return
+    const events = Array.isArray(m.events) ? m.events : []
+    const haystack = [
+      m.name, m.hometown, m.occupation, m.bio,
+      m.birthYear != null ? String(m.birthYear) : '',
+      ...events.map(e => `${e.year || ''} ${e.text || ''}`)
+    ].filter(Boolean).join(' ')
+    index.push({
+      id: `member-${m.id}`,
+      type: 'member',
+      title: m.name,
+      description: [m.gender, m.birthYear ? `${m.birthYear}年生` : '', m.hometown].filter(Boolean).join(' · ') || '家族成员',
+      haystack,
+      time: m.updated_at || m.created_at || '',
+      raw: m
+    })
+  })
+
+  // 记忆地点
+  locations.forEach(l => {
+    if (!l) return
+    index.push({
+      id: `location-${l.id || l.name}`,
+      type: 'location',
+      title: l.name,
+      description: [l.year ? `${l.year}年` : '', l.description].filter(Boolean).join(' · ') || '记忆地点',
+      haystack: [l.name, l.year, l.description].filter(Boolean).join(' '),
+      time: l.created_at || '',
+      raw: l
+    })
+  })
+
+  // 传家宝
+  heirlooms.forEach(h => {
+    if (!h) return
+    index.push({
+      id: `heirloom-${h.id || h.title}`,
+      type: 'heirloom',
+      title: h.title,
+      description: [h.type, h.author_name || '匿名'].filter(Boolean).join(' · ') || '传家宝',
+      haystack: [h.title, h.type, h.author_name, h.description, h.story].filter(Boolean).join(' '),
+      time: h.created_at || '',
+      raw: h
+    })
+  })
+
+  // 时光胶囊
+  capsules.forEach(c => {
+    if (!c) return
+    index.push({
+      id: `capsule-${c.id || c.title}`,
+      type: 'capsule',
+      title: c.title,
+      description: [c.to_person ? `给 ${c.to_person}` : '', c.unlock_date ? `${c.unlock_date} 解锁` : ''].filter(Boolean).join(' · ') || '时光胶囊',
+      haystack: [c.title, c.content, c.from_person, c.to_person].filter(Boolean).join(' '),
+      time: c.created_at || '',
+      raw: c
+    })
+  })
+
+  // 采访会话
+  sessions.forEach(s => {
+    if (!s) return
+    const name = s.interviewee?.name || ''
+    const msgs = Array.isArray(s.messages) ? s.messages : []
+    const transcript = msgs.map(m => m.text || '').join(' ')
+    index.push({
+      id: `interview-${s.id}`,
+      type: 'interview',
+      title: name ? `与${name}的采访` : '采访记录',
+      description: `${msgs.length} 条对话`,
+      haystack: [name, transcript].filter(Boolean).join(' '),
+      time: s.date || s.created_at || '',
+      raw: s
+    })
+  })
+
+  return index
+}
 
 const onSearch = () => {
   if (!searchQuery.value.trim()) return
-
-  // 保存到历史
-  saveToHistory(searchQuery.value)
-
-  performSearch(searchQuery.value)
+  saveToHistory(searchQuery.value.trim())
+  performSearch(searchQuery.value.trim())
 }
 
 const onInput = (value) => {
   if (value.trim()) {
-    performSearch(value)
+    performSearch(value.trim())
   } else {
     isSearching.value = false
     searchResults.value = []
@@ -192,19 +241,35 @@ const onClear = () => {
 }
 
 const performSearch = (query) => {
+  const q = query.trim().toLowerCase()
+  if (!q) {
+    isSearching.value = false
+    searchResults.value = []
+    return
+  }
   isLoading.value = true
   isSearching.value = true
 
-  // 模拟搜索延迟
-  setTimeout(() => {
-    const lowerQuery = query.toLowerCase()
-    searchResults.value = mockData.filter(item =>
-      item.title.toLowerCase().includes(lowerQuery) ||
-      item.description.toLowerCase().includes(lowerQuery) ||
-      item.keywords.some(k => k.toLowerCase().includes(lowerQuery))
-    )
-    isLoading.value = false
-  }, 300)
+  // 真实数据即时搜索（无需假延迟）
+  const all = buildSearchIndex()
+  searchResults.value = all
+    .filter(item => item.haystack.toLowerCase().includes(q))
+    .map(item => {
+      const meta = TYPE_META[item.type] || TYPE_META.member
+      return {
+        id: item.id,
+        type: item.type,
+        title: item.title,
+        description: item.description,
+        icon: meta.icon,
+        color: meta.color,
+        category: meta.category,
+        tagType: meta.tagType,
+        time: formatRelativeTime(item.time),
+        raw: item.raw
+      }
+    })
+  isLoading.value = false
 }
 
 const searchTag = (tag) => {
@@ -214,11 +279,13 @@ const searchTag = (tag) => {
 }
 
 const saveToHistory = (query) => {
-  const index = searchHistory.value.indexOf(query)
+  const q = query.trim()
+  if (!q) return
+  const index = searchHistory.value.indexOf(q)
   if (index > -1) {
     searchHistory.value.splice(index, 1)
   }
-  searchHistory.value.unshift(query)
+  searchHistory.value.unshift(q)
   if (searchHistory.value.length > 10) {
     searchHistory.value = searchHistory.value.slice(0, 10)
   }
@@ -230,6 +297,7 @@ const clearHistory = () => {
   localStorage.removeItem('searchHistory')
 }
 
+// 跳转到对应模块，并尽量带上定位信息
 const goToResult = (result) => {
   const routes = {
     interview: '/interview',
@@ -238,13 +306,23 @@ const goToResult = (result) => {
     member: '/graph',
     capsule: '/capsule'
   }
-  router.push(routes[result.type] || '/')
+  const path = routes[result.type] || '/'
+  // 尝试传递待高亮/选中的 id，供目标页定位
+  if (result.raw?.id != null) {
+    router.push({ path, query: { focus: String(result.raw.id) } })
+  } else {
+    router.push(path)
+  }
 }
 
 onMounted(() => {
   const saved = localStorage.getItem('searchHistory')
   if (saved) {
-    searchHistory.value = JSON.parse(saved)
+    try {
+      searchHistory.value = JSON.parse(saved)
+    } catch (e) {
+      searchHistory.value = []
+    }
   }
 })
 </script>
@@ -331,6 +409,13 @@ onMounted(() => {
 .empty-state p {
   margin: 16px 0 0;
   font-size: 14px;
+}
+
+.empty-tip {
+  color: var(--fv-ink-4);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 0 24px;
 }
 
 .results-list {
