@@ -136,9 +136,31 @@ export const capsuleApi = {
   }
 }
 
+/**
+ * 地图相关 API
+ */
+export const geoApi = {
+  // 地名 → 坐标（返回 WGS-84，前端负责转 GCJ-02）
+  searchPlaces(q, opts = {}) {
+    return request.get('/geo/search', {
+      params: { q, limit: 6, lat: opts.lat, lng: opts.lng },
+      timeout: 12000
+    })
+  },
+
+  // 坐标 → 地址文字
+  reverse(lat, lng) {
+    return request.get('/geo/reverse', {
+      params: { lat, lng },
+      timeout: 12000
+    })
+  }
+}
+
 export default {
   interview: interviewApi,
   upload: uploadApi,
   graph: graphApi,
-  capsule: capsuleApi
+  capsule: capsuleApi,
+  geo: geoApi
 }

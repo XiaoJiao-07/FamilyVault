@@ -16,6 +16,7 @@ import interviewRoutes from './routes/interview.js'
 import graphRoutes from './routes/graph.js'
 import capsuleRoutes from './routes/capsule.js'
 import uploadRoutes from './routes/upload.js'
+import geoRoutes from './routes/geo.js'
 
 // Import database
 import { initDatabase } from './models/database.js'
@@ -44,6 +45,7 @@ app.use('/api/interview', interviewRoutes)
 app.use('/api/graph', graphRoutes)
 app.use('/api/capsule', capsuleRoutes)
 app.use('/api/upload', uploadRoutes)
+app.use('/api/geo', geoRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
