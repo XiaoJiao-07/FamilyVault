@@ -56,6 +56,13 @@ const DEMO_LOCATIONS = [
   ['我的出生地', 2005]
 ]
 
+// 旧版采访页会自动创建的示例采访对象
+const DEMO_INTERVIEWEES = [
+  ['爷爷', 74, '湖北武汉', '祖父'],
+  ['奶奶', 72, '四川成都', '祖母'],
+  ['爸爸', 46, '湖北武汉', '父亲']
+]
+
 const normalize = (text) => String(text || '').replace(/\s+/g, '')
 
 // 比较内容开头：取两侧可用的最短长度，避免「示例文案比截断长度短」时误判
@@ -95,6 +102,19 @@ const isDemoMember = (m) => {
 
 const isDemoLocation = (l) =>
   l && DEMO_LOCATIONS.some(([name, year]) => l.name === name && Number(l.year) === year)
+
+// 示例采访对象：只有从没被采访过（0 条记录）才算示例，被用过就保留
+const isDemoInterviewee = (p, sessionOwnerIds) =>
+  p &&
+  !(p.sessions_count > 0) &&
+  !sessionOwnerIds.has(p.id) &&
+  DEMO_INTERVIEWEES.some(
+    ([name, age, hometown, relationship]) =>
+      p.name === name &&
+      Number(p.age) === age &&
+      p.hometown === hometown &&
+      p.relationship === relationship
+  )
 
 const idOf = (v) => (v && typeof v === 'object' ? v.id : v)
 
@@ -143,6 +163,22 @@ export function cleanupDemoData() {
     if (kept.length !== locations.length) {
       storage.set(STORAGE_KEYS.MEMORY_LOCATIONS, kept)
       removed.push(`${locations.length - kept.length} 个示例地点`)
+    }
+  }
+
+  // 4. 采访对象（被采访过的示例对象保留，只清从没用过的）
+  const interviewees = storage.get(STORAGE_KEYS.INTERVIEWEES, null)
+  if (Array.isArray(interviewees) && interviewees.length) {
+    const sessions = storage.get(STORAGE_KEYS.INTERVIEW_SESSIONS, null)
+    const sessionOwnerIds = new Set(
+      (Array.isArray(sessions) ? sessions : [])
+        .map(s => s && s.interviewee && s.interviewee.id)
+        .filter(id => id != null)
+    )
+    const kept = interviewees.filter(p => !isDemoInterviewee(p, sessionOwnerIds))
+    if (kept.length !== interviewees.length) {
+      storage.set(STORAGE_KEYS.INTERVIEWEES, kept)
+      removed.push(`${interviewees.length - kept.length} 个示例采访对象`)
     }
   }
 

@@ -45,6 +45,13 @@
             </div>
           </div>
           <van-icon v-if="selectedInterviewee?.id === person.id" name="success" color="#10b981" size="20" />
+          <van-icon
+            class="interviewee-delete"
+            name="delete-o"
+            color="var(--fv-ink-4)"
+            size="18"
+            @click.stop="removeInterviewee(person)"
+          />
         </div>
       </div>
 
@@ -308,7 +315,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
-import { showToast } from 'vant'
+import { showToast, showConfirmDialog } from 'vant'
 import speechRecognizer from '@/utils/speech'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
 import { interviewAPI } from '@/utils/api'
@@ -458,6 +465,36 @@ const saveInterviewees = () => {
 // 选择采访对象
 const selectInterviewee = (person) => {
   selectedInterviewee.value = person
+}
+
+// 删除采访对象（TA 的采访记录一并删除）
+const removeInterviewee = (person) => {
+  const related = interviewSessions.value.filter(
+    s => s.interviewee && s.interviewee.id === person.id
+  )
+  showConfirmDialog({
+    title: '删除采访对象',
+    message: related.length
+      ? `确定删除「${person.name}」吗？\nTA 的 ${related.length} 条采访记录也会一并删除。`
+      : `确定删除「${person.name}」吗？`,
+    confirmButtonText: '删除',
+    confirmButtonColor: '#B4442E'
+  })
+    .then(() => {
+      interviewees.value = interviewees.value.filter(p => p.id !== person.id)
+      saveInterviewees()
+      if (related.length) {
+        interviewSessions.value = interviewSessions.value.filter(
+          s => !(s.interviewee && s.interviewee.id === person.id)
+        )
+        storage.set(STORAGE_KEYS.INTERVIEW_SESSIONS, interviewSessions.value)
+      }
+      if (selectedInterviewee.value?.id === person.id) {
+        selectedInterviewee.value = null
+      }
+      showToast('已删除')
+    })
+    .catch(() => {})
 }
 
 // 添加采访对象
@@ -957,6 +994,12 @@ onUnmounted(() => {
   transition: all 0.2s ease;
   border: 1.5px solid transparent;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.interviewee-delete {
+  margin-left: 12px;
+  padding: 6px;
+  flex-shrink: 0;
 }
 
 .interviewee-card.active {
