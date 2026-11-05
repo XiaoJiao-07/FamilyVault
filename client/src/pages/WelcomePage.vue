@@ -54,7 +54,7 @@
       <van-swipe-item>
         <div class="welcome-content">
           <div class="welcome-icon">
-            <van-icon name="chat-o" size="64" color="#b4442e" />
+            <van-icon name="chat-o" size="64" color="var(--fv-primary)" />
           </div>
           <h2 class="feature-title">AI 智能采访</h2>
           <p class="feature-desc">
@@ -73,7 +73,7 @@
       <van-swipe-item>
         <div class="welcome-content">
           <div class="welcome-icon">
-            <van-icon name="cluster-o" size="64" color="#5f7a52" />
+            <van-icon name="cluster-o" size="64" color="var(--fv-graph)" />
           </div>
           <h2 class="feature-title">家族知识图谱</h2>
           <p class="feature-desc">
@@ -95,7 +95,7 @@
       <van-swipe-item>
         <div class="welcome-content">
           <div class="welcome-icon">
-            <van-icon name="location-o" size="64" color="#4a6b7c" />
+            <van-icon name="location-o" size="64" color="var(--fv-map)" />
           </div>
           <h2 class="feature-title">记忆地图</h2>
           <p class="feature-desc">
@@ -110,7 +110,7 @@
       <van-swipe-item>
         <div class="welcome-content">
           <div class="welcome-icon">
-            <van-icon name="clock-o" size="64" color="#9c5b6b" />
+            <van-icon name="clock-o" size="64" color="var(--fv-capsule)" />
           </div>
           <h2 class="feature-title">时光胶囊</h2>
           <p class="feature-desc">
@@ -125,7 +125,7 @@
       <van-swipe-item>
         <div class="welcome-content">
           <div class="welcome-icon">
-            <van-icon name="star" size="64" color="#c99a5b" />
+            <van-icon name="star" size="64" color="var(--fv-brass)" />
           </div>
           <h2 class="feature-title">准备好了吗？</h2>
           <p class="feature-desc">
@@ -348,7 +348,7 @@ const startUsing = () => {
 /* ================= 暖纸质主题覆写 ================= */
 .welcome-page {
   background:
-    radial-gradient(120% 65% at 50% -10%, #fffbf2 0%, rgba(255, 251, 242, 0) 62%),
+    radial-gradient(120% 65% at 50% -10%, var(--fv-paper-glow) 0%, rgba(255, 251, 242, 0) 62%),
     radial-gradient(80% 50% at 100% 102%, rgba(201, 154, 91, 0.22), rgba(201, 154, 91, 0) 62%),
     var(--fv-paper);
 }
@@ -434,7 +434,7 @@ const startUsing = () => {
 
 .chat-bubble.user {
   background: var(--fv-primary-soft);
-  border: 1px solid #f0cfc1;
+  border: 1px solid var(--fv-border-warm);
   color: var(--fv-ink);
 }
 

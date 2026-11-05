@@ -399,6 +399,24 @@ const onCloudSignOut = async () => {
 
 <style scoped>
 .login-page {
+  /* 登录页局部设计令牌（仅本页使用，收敛细色阶，避免散落硬编码） */
+  --lg-brand-en: #b9a089;
+  --lg-paper-glow: #fffbf2;
+  --lg-label: #9a8a78;
+  --lg-muted: #a8977f;
+  --lg-ink-soft: #7e6c58;
+  --lg-ink-strong: #4a3a2a;
+  --lg-placeholder: #c4b6a4;
+  --lg-border-soft: #e8dcc9;
+  --lg-border-strong: #cbb79b;
+  --lg-divider: #e7dac8;
+  --lg-surface-raise: #fffdfa;
+  --lg-chip-bg: #f2e8d9;
+  --lg-accent: #c25b3e;
+  --lg-jade: #7fa08c;
+  --lg-jade-deep: #5b7d69;
+  --lg-sheet: linear-gradient(135deg, #fdf7ec 0%, #f4ead9 100%);
+
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
@@ -407,9 +425,9 @@ const onCloudSignOut = async () => {
   justify-content: center;
   padding: 28px 18px calc(28px + env(safe-area-inset-bottom));
   background:
-    radial-gradient(120% 70% at 50% -8%, #fffbf2 0%, rgba(255, 251, 242, 0) 62%),
+    radial-gradient(120% 70% at 50% -8%, var(--lg-paper-glow) 0%, rgba(255, 251, 242, 0) 62%),
     radial-gradient(80% 55% at 100% 102%, rgba(201, 154, 91, 0.18), rgba(201, 154, 91, 0) 62%),
-    #f5eee3;
+    var(--fv-paper);
   overflow-x: hidden;
 }
 
@@ -432,8 +450,8 @@ const onCloudSignOut = async () => {
   width: 100%;
   max-width: 400px;
   padding: 30px 22px 20px;
-  background: #fffdf8;
-  border: 1px solid #eadfcd;
+  background: var(--fv-surface);
+  border: 1px solid var(--fv-border);
   border-radius: 24px;
   box-shadow:
     0 24px 60px -28px rgba(74, 52, 36, 0.45),
@@ -473,7 +491,7 @@ const onCloudSignOut = async () => {
   font-weight: 700;
   letter-spacing: 0.22em;
   text-indent: 0.22em;
-  color: #2b2119;
+  color: var(--fv-ink);
 }
 
 .brand-en {
@@ -482,13 +500,13 @@ const onCloudSignOut = async () => {
   font-weight: 600;
   letter-spacing: 0.34em;
   text-indent: 0.34em;
-  color: #b9a089;
+  color: var(--lg-brand-en);
 }
 
 .brand-slogan {
   margin: 10px 0 0;
   font-size: 13px;
-  color: #8e7c69;
+  color: var(--fv-ink-3);
 }
 
 /* 分段控件 */
@@ -498,7 +516,7 @@ const onCloudSignOut = async () => {
   grid-template-columns: 1fr 1fr;
   padding: 4px;
   margin-bottom: 16px;
-  background: #f2e8d9;
+  background: var(--lg-chip-bg);
   border-radius: 13px;
 }
 
@@ -512,13 +530,13 @@ const onCloudSignOut = async () => {
   font-family: inherit;
   font-size: 15px;
   font-weight: 500;
-  color: #9a8a78;
+  color: var(--lg-label);
   cursor: pointer;
   transition: color 0.18s ease;
 }
 
 .seg-btn.is-on {
-  color: #2b2119;
+  color: var(--fv-ink);
   font-weight: 600;
 }
 
@@ -528,7 +546,7 @@ const onCloudSignOut = async () => {
   left: 4px;
   width: calc(50% - 4px);
   height: calc(100% - 8px);
-  background: #fffdf8;
+  background: var(--fv-surface);
   border-radius: 10px;
   box-shadow: 0 1px 4px rgba(74, 52, 36, 0.14);
   transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
@@ -545,12 +563,12 @@ const onCloudSignOut = async () => {
   align-items: flex-start;
   margin: 0 0 14px;
   padding: 10px 12px;
-  background: #fcefe9;
-  border: 1px solid #f0cfc1;
+  background: var(--fv-primary-soft);
+  border: 1px solid var(--fv-border-warm);
   border-radius: 12px;
   font-size: 13px;
   line-height: 1.5;
-  color: #9c3826;
+  color: var(--fv-primary-deep);
 }
 
 .alert-icon {
@@ -564,8 +582,8 @@ const onCloudSignOut = async () => {
   display: block;
   margin-bottom: 12px;
   padding: 10px 14px;
-  background: #fffcf6;
-  border: 1px solid #e8dcc9;
+  background: var(--fv-surface-soft);
+  border: 1px solid var(--lg-border-soft);
   border-radius: 14px;
   transition:
     border-color 0.18s ease,
@@ -578,8 +596,8 @@ const onCloudSignOut = async () => {
 }
 
 :deep(.fx-field:focus-within) {
-  background: #fffdfa;
-  border-color: #b4442e;
+  background: var(--lg-surface-raise);
+  border-color: var(--fv-primary);
   box-shadow: 0 0 0 3px rgba(180, 68, 46, 0.1);
 }
 
@@ -589,24 +607,24 @@ const onCloudSignOut = async () => {
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.12em;
-  color: #9a8a78;
+  color: var(--lg-label);
 }
 
 :deep(.fx-field .van-field__control) {
   font-size: 16px;
-  color: #2b2119;
-  caret-color: #b4442e;
+  color: var(--fv-ink);
+  caret-color: var(--fv-primary);
 }
 
 :deep(.fx-field .van-field__control::placeholder) {
   font-size: 15px;
-  color: #c4b6a4;
+  color: var(--lg-placeholder);
 }
 
 :deep(.fx-field .van-field__error-message) {
   margin-top: 4px;
   font-size: 12px;
-  color: #b4442e;
+  color: var(--fv-primary);
 }
 
 :deep(.fx-field .van-field__right-icon) {
@@ -622,13 +640,13 @@ const onCloudSignOut = async () => {
   padding: 4px;
   border: 0;
   background: transparent;
-  color: #a8977f;
+  color: var(--lg-muted);
   cursor: pointer;
   transition: color 0.18s ease;
 }
 
 .eye:hover {
-  color: #b4442e;
+  color: var(--fv-primary);
 }
 
 /* 主按钮 */
@@ -639,7 +657,7 @@ const onCloudSignOut = async () => {
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  background: linear-gradient(135deg, #c25b3e 0%, #9c3826 100%);
+  background: linear-gradient(135deg, var(--lg-accent) 0%, var(--fv-primary-deep) 100%);
   box-shadow: 0 12px 24px -14px rgba(156, 56, 38, 0.95);
   transition:
     transform 0.15s ease,
@@ -661,14 +679,14 @@ const onCloudSignOut = async () => {
   background: none;
   font-family: inherit;
   font-size: 12px;
-  color: #a8977f;
+  color: var(--lg-muted);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
 }
 
 .link:hover {
-  color: #9c3826;
+  color: var(--fv-primary-deep);
 }
 
 /* 云服务入口 */
@@ -681,7 +699,7 @@ const onCloudSignOut = async () => {
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
-  color: #b3a28d;
+  color: var(--fv-ink-4);
   font-size: 11px;
   letter-spacing: 0.18em;
 }
@@ -691,7 +709,7 @@ const onCloudSignOut = async () => {
   content: '';
   flex: 1;
   height: 1px;
-  background: #e7dac8;
+  background: var(--lg-divider);
 }
 
 .cloud-btn {
@@ -701,13 +719,13 @@ const onCloudSignOut = async () => {
   gap: 8px;
   width: 100%;
   height: 46px;
-  border: 1px solid #cbb79b;
+  border: 1px solid var(--lg-border-strong);
   border-radius: 14px;
-  background: linear-gradient(135deg, #fdf7ec 0%, #f4ead9 100%);
+  background: var(--lg-sheet);
   font-family: inherit;
   font-size: 15px;
   font-weight: 600;
-  color: #4a3a2a;
+  color: var(--lg-ink-strong);
   cursor: pointer;
   transition:
     transform 0.15s ease,
@@ -726,7 +744,7 @@ const onCloudSignOut = async () => {
 
 .cloud-btn.is-ghost {
   background: transparent;
-  color: #a8977f;
+  color: var(--lg-muted);
   font-weight: 500;
 }
 
@@ -737,8 +755,8 @@ const onCloudSignOut = async () => {
   width: 22px;
   height: 22px;
   border-radius: 7px;
-  background: linear-gradient(140deg, #7fa08c 0%, #5b7d69 100%);
-  color: #fffdf8;
+  background: linear-gradient(140deg, var(--lg-jade) 0%, var(--lg-jade-deep) 100%);
+  color: var(--fv-surface);
   font-size: 13px;
   font-weight: 700;
 }
@@ -748,7 +766,7 @@ const onCloudSignOut = async () => {
   font-size: 11px;
   line-height: 1.5;
   text-align: center;
-  color: #a8977f;
+  color: var(--lg-muted);
 }
 
 .cloud-signed {
@@ -758,28 +776,28 @@ const onCloudSignOut = async () => {
   gap: 6px;
   margin: 0 0 10px;
   font-size: 13px;
-  color: #5b7d69;
+  color: var(--lg-jade-deep);
 }
 
 /* 页脚 */
 .card-foot {
   margin-top: 18px;
   padding-top: 16px;
-  border-top: 1px dashed #e7dac8;
+  border-top: 1px dashed var(--lg-divider);
   text-align: center;
 }
 
 .foot-primary {
   margin: 0;
   font-size: 13px;
-  color: #7e6c58;
+  color: var(--lg-ink-soft);
 }
 
 .foot-hint {
   margin: 6px 0 0;
   font-size: 12px;
   line-height: 1.5;
-  color: #a8977f;
+  color: var(--lg-muted);
 }
 
 .foot-privacy {
@@ -789,7 +807,7 @@ const onCloudSignOut = async () => {
   gap: 4px;
   margin: 14px 0 0;
   font-size: 11px;
-  color: #b3a28d;
+  color: var(--fv-ink-4);
 }
 
 @media (min-width: 768px) {

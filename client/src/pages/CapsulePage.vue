@@ -12,7 +12,7 @@
       >
         <div class="capsule-header">
           <div class="capsule-icon" :class="capsule.is_unlocked ? 'unlocked-bg' : 'locked-bg'">
-            <van-icon :name="capsule.is_unlocked ? 'passed' : 'lock'" size="22" :color="capsule.is_unlocked ? '#5f7a52' : '#ff976a'" />
+            <van-icon :name="capsule.is_unlocked ? 'passed' : 'lock'" size="22" :color="capsule.is_unlocked ? 'var(--fv-success)' : 'var(--fv-brass)'" />
           </div>
           <div class="capsule-info">
             <div class="capsule-title">{{ capsule.title }}</div>
@@ -28,7 +28,7 @@
           </div>
           <div v-else class="locked-content">
             <div class="lock-visual">
-              <div class="lock-icon"><van-icon name="lock" size="32" color="#ff976a" /></div>
+              <div class="lock-icon"><van-icon name="lock" size="32" color="var(--fv-brass)" /></div>
               <div class="countdown">
                 <span class="days">{{ capsule.days_left }}</span>
                 <span class="unit">天</span>
@@ -274,7 +274,9 @@ onMounted(() => {
 }
 
 .capsule-card {
+  position: relative;
   background: var(--fv-surface);
+  border: 1px solid var(--fv-border);
   border-radius: 16px;
   padding: 16px;
   margin-bottom: 14px;
@@ -282,13 +284,31 @@ onMounted(() => {
   transition: all 0.3s;
 }
 
-.capsule-card.unlocked {
-  border-left: 4px solid #5f7a52;
+/* 状态用左上角小圆点表达，含蓄不抢戏 */
+.capsule-card.unlocked::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fv-success);
+}
+
+.capsule-card.locked::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fv-brass);
 }
 
 .capsule-card.locked {
-  border-left: 4px solid #ff976a;
-  opacity: 0.9;
+  opacity: 0.92;
 }
 
 .capsule-header {
@@ -310,11 +330,11 @@ onMounted(() => {
 }
 
 .locked-bg {
-  background: linear-gradient(135deg, #f7e7d2, #e9c3a8);
+  background: var(--fv-brass-soft);
 }
 
 .unlocked-bg {
-  background: linear-gradient(135deg, #cfe0da, #f3dcd6);
+  background: var(--fv-graph-soft);
 }
 
 .capsule-info {
@@ -374,7 +394,7 @@ onMounted(() => {
 .countdown .days {
   font-size: 28px;
   font-weight: 700;
-  color: #ff976a;
+  color: var(--fv-brass);
 }
 
 .countdown .unit {

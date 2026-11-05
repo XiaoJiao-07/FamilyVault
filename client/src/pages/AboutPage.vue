@@ -628,8 +628,8 @@ const clearData = async () => {
   text-align: center;
   padding: 40px 20px 30px;
   background:
-    radial-gradient(120% 90% at 20% 0%, #c25b3e 0%, rgba(194, 91, 62, 0) 55%),
-    linear-gradient(160deg, #a8432c 0%, #8c3223 100%);
+    radial-gradient(120% 90% at 20% 0%, var(--fv-primary) 0%, rgba(194, 91, 62, 0) 55%),
+    linear-gradient(160deg, var(--fv-primary-deep) 0%, var(--fv-primary-deep) 100%);
 }
 
 .app-icon {
@@ -647,14 +647,14 @@ const clearData = async () => {
 .icon-text {
   font-family: var(--fv-font-serif);
   font-size: 32px;
-  color: #fff6ea;
+  color: var(--fv-surface-soft);
 }
 
 .app-name {
   font-family: var(--fv-font-serif);
   font-size: 24px;
   font-weight: 600;
-  color: #fff6ea;
+  color: var(--fv-surface-soft);
   margin: 0 0 8px;
   letter-spacing: 0.06em;
 }
@@ -705,7 +705,7 @@ const clearData = async () => {
   height: 42px;
   border-radius: 10px;
   background: var(--fv-primary-soft);
-  border: 1px solid #f0cfc1;
+  border: 1px solid var(--fv-border-warm);
   color: var(--fv-primary);
   font-family: var(--fv-font-serif);
   font-size: 20px;
@@ -783,7 +783,7 @@ const clearData = async () => {
 }
 
 .member-chip.me {
-  border-color: #f0cfc1;
+  border-color: var(--fv-border-warm);
   background: var(--fv-primary-soft);
   color: var(--fv-primary);
 }
@@ -802,7 +802,7 @@ const clearData = async () => {
 
 .member-chip.me .member-avatar {
   background: var(--fv-primary);
-  color: #fff6ea;
+  color: var(--fv-surface-soft);
 }
 
 .member-role {
@@ -880,7 +880,7 @@ const clearData = async () => {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #5f7a52;
+  background: var(--fv-graph);
   flex: none;
 }
 

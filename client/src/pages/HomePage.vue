@@ -32,20 +32,20 @@
     <!-- 时光胶囊到期提醒 -->
     <div v-if="capsuleDueCount > 0" class="capsule-alert" @click="$router.push('/capsule')">
       <div class="capsule-alert__icon">
-        <van-icon name="clock-o" size="20" color="#b4442e" />
+        <van-icon name="clock-o" size="20" color="var(--fv-primary)" />
       </div>
       <div class="capsule-alert__text">
         <div class="capsule-alert__title">有 {{ capsuleDueCount }} 颗时光胶囊到期待开启</div>
         <div class="capsule-alert__desc">来自家人的心意，点此查看</div>
       </div>
-      <van-icon name="arrow" color="#b4442e" size="16" />
+      <van-icon name="arrow" color="var(--fv-primary)" size="16" />
     </div>
 
     <!-- 功能入口网格 -->
     <div class="feature-grid">
       <div class="feature-card" @click="$router.push('/interview')">
         <div class="feature-icon-wrapper interview-bg">
-          <van-icon name="chat-o" size="22" color="#b4442e" />
+          <van-icon name="chat-o" size="22" color="var(--fv-interview)" />
         </div>
         <div class="feature-title">采访</div>
         <div class="feature-desc">智能引导，记录家族故事</div>
@@ -53,7 +53,7 @@
 
       <div class="feature-card" @click="$router.push('/graph')">
         <div class="feature-icon-wrapper graph-bg">
-          <van-icon name="cluster-o" size="22" color="#5f7a52" />
+          <van-icon name="cluster-o" size="22" color="var(--fv-graph)" />
         </div>
         <div class="feature-title">家族图谱</div>
         <div class="feature-desc">可视化家族关系网络</div>
@@ -61,7 +61,7 @@
 
       <div class="feature-card" @click="$router.push('/map')">
         <div class="feature-icon-wrapper map-bg">
-          <van-icon name="location-o" size="22" color="#4a6b7c" />
+          <van-icon name="location-o" size="22" color="var(--fv-map)" />
         </div>
         <div class="feature-title">记忆地图</div>
         <div class="feature-desc">标注家族迁徙轨迹</div>
@@ -69,7 +69,7 @@
 
       <div class="feature-card" @click="$router.push('/capsule')">
         <div class="feature-icon-wrapper capsule-bg">
-          <van-icon name="clock-o" size="22" color="#9c5b6b" />
+          <van-icon name="clock-o" size="22" color="var(--fv-capsule)" />
         </div>
         <div class="feature-title">时光胶囊</div>
         <div class="feature-desc">给未来的人录一段话</div>
@@ -77,7 +77,7 @@
 
       <div class="feature-card" @click="$router.push('/heirloom')">
         <div class="feature-icon-wrapper heirloom-bg">
-          <van-icon name="gift-card-o" size="22" color="#b8834a" />
+          <van-icon name="gift-card-o" size="22" color="var(--fv-heirloom)" />
         </div>
         <div class="feature-title">传家宝</div>
         <div class="feature-desc">保存家传菜谱和手艺</div>
@@ -85,7 +85,7 @@
 
       <div class="feature-card" @click="$router.push('/timeline')">
         <div class="feature-icon-wrapper timeline-bg">
-          <van-icon name="underway-o" size="22" color="#7a6a52" />
+          <van-icon name="underway-o" size="22" color="var(--fv-timeline)" />
         </div>
         <div class="feature-title">家族年轮</div>
         <div class="feature-desc">一条时间线读懂家族</div>
@@ -632,7 +632,7 @@ const dailyQuote = ref({
   gap: 12px;
   padding: 14px 16px;
   background: var(--fv-surface);
-  border: 1px solid #f0cfc1;
+  border: 1px solid var(--fv-border-warm);
   border-radius: 16px;
   box-shadow: var(--fv-shadow-sm);
   cursor: pointer;
@@ -647,7 +647,7 @@ const dailyQuote = ref({
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: var(--fv-primary-soft, #fbe9e3);
+  background: var(--fv-primary-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -682,7 +682,7 @@ const dailyQuote = ref({
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--fv-border-soft);
 }
 
 .panel-header h3 {
@@ -703,15 +703,15 @@ const dailyQuote = ref({
 
 .code-result p {
   font-size: 14px;
-  color: #666;
+  color: var(--fv-ink-2);
   margin: 0 0 12px;
 }
 
 .code-display {
   font-size: 24px;
   font-weight: 700;
-  color: #007aff;
-  background: #f0f7ff;
+  color: var(--fv-primary);
+  background: var(--fv-primary-soft);
   padding: 16px;
   border-radius: 12px;
   letter-spacing: 2px;
@@ -720,7 +720,7 @@ const dailyQuote = ref({
 
 .code-hint {
   font-size: 12px;
-  color: #999;
+  color: var(--fv-ink-3);
   margin-bottom: 16px;
 }
 
@@ -730,9 +730,7 @@ const dailyQuote = ref({
 }
 
 .banner {
-  background:
-    radial-gradient(120% 90% at 15% 0%, #c25b3e 0%, rgba(194, 91, 62, 0) 55%),
-    linear-gradient(160deg, #a8432c 0%, #8c3223 100%);
+  background: var(--fv-gradient-banner);
   border-radius: 0 0 24px 24px;
   padding: 26px 20px 22px;
   box-shadow: 0 18px 36px -28px rgba(108, 40, 27, 0.9);
@@ -794,27 +792,27 @@ const dailyQuote = ref({
 }
 
 .interview-bg {
-  background: #fbe9e3;
+  background: var(--fv-interview-soft);
 }
 
 .graph-bg {
-  background: #eef2e7;
+  background: var(--fv-graph-soft);
 }
 
 .map-bg {
-  background: #e9eef1;
+  background: var(--fv-map-soft);
 }
 
 .capsule-bg {
-  background: #f6e9ec;
+  background: var(--fv-capsule-soft);
 }
 
 .heirloom-bg {
-  background: #f8efe0;
+  background: var(--fv-heirloom-soft);
 }
 
 .timeline-bg {
-  background: #efe8d8;
+  background: var(--fv-timeline-soft);
 }
 
 .section-title {
@@ -853,7 +851,7 @@ const dailyQuote = ref({
 }
 
 .quote-card {
-  background: linear-gradient(140deg, #f9f1e2 0%, #f1e2ca 100%);
+  background: var(--fv-gradient-quote);
   border: 1px solid var(--fv-border);
   border-radius: 16px;
 }
@@ -879,7 +877,7 @@ const dailyQuote = ref({
   font-weight: 600;
   letter-spacing: 0.06em;
   border: 0;
-  background: linear-gradient(135deg, #c25b3e 0%, #9c3826 100%);
+  background: var(--fv-gradient-cta);
   box-shadow: 0 12px 24px -16px rgba(156, 56, 38, 0.95);
 }
 
@@ -922,7 +920,7 @@ const dailyQuote = ref({
 .code-display {
   color: var(--fv-primary);
   background: var(--fv-primary-soft);
-  border: 1px solid #f0cfc1;
+  border: 1px solid var(--fv-border-warm);
   font-family: var(--fv-font-serif);
   letter-spacing: 0.18em;
 }

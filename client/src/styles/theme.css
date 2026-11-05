@@ -24,6 +24,38 @@
   --fv-brass-soft: #f6ead6;
   --fv-success: #4f7a52;
 
+  /* 模块语义色（六宫格入口 + 各页面状态色，按语义使用，勿写死色值） */
+  --fv-interview: #b4442e;          /* 采访 · 印章红 */
+  --fv-interview-soft: #fcefe9;
+  --fv-graph: #5f7a52;              /* 家族图谱 · 松柏绿 */
+  --fv-graph-soft: #eef3ea;
+  --fv-map: #4a6b7c;                /* 记忆地图 · 远山蓝 */
+  --fv-map-soft: #ecf1f4;
+  --fv-capsule: #9c5b6b;            /* 时光胶囊 · 葡萄紫 */
+  --fv-capsule-soft: #f5edf0;
+  --fv-heirloom: #b8834a;           /* 传家宝 · 黄铜 */
+  --fv-heirloom-soft: #f6ead6;
+  --fv-timeline: #7a6a52;           /* 家族年轮 · 木纹棕 */
+  --fv-timeline-soft: #f1ece2;
+
+  /* 家谱节点性别色（图谱可视化与图例共用） */
+  --fv-male: #4a6b7c;               /* 男性节点 · 远山蓝 */
+  --fv-female: #9c5b6b;             /* 女性节点 · 葡萄紫 */
+
+  /* 纸面层次补充（按钮/区块底色与描边） */
+  --fv-surface-cream: #fdf8f0;      /* 暖白纸面，介于 surface 与 paper 之间 */
+  --fv-border-cream: #e3d5c2;       /* 米色描边 */
+  --fv-ink-soft: #5f5e5a;           /* 次级深灰文字 */
+  --fv-paper-glow: #fffbf2;         /* 纸面顶部高光 */
+
+  /* 语义渐变（集中定义，组件只引用，勿在组件里拼色值） */
+  --fv-gradient-banner:                     /* 首页顶部横幅 · 印章红晕染 */
+    radial-gradient(120% 90% at 15% 0%, #c25b3e 0%, rgba(194, 91, 62, 0) 55%),
+    linear-gradient(160deg, #a8432c 0%, #8c3223 100%);
+  --fv-gradient-cta: linear-gradient(135deg, #c25b3e 0%, #9c3826 100%);   /* 主行动按钮 */
+  --fv-gradient-quote: linear-gradient(140deg, #f9f1e2 0%, #f1e2ca 100%); /* 家训卡片 */
+  --fv-border-warm: #f0cfc1;                /* 暖色描边（胶囊提醒等） */
+
   /* 形状与阴影 */
   --fv-radius-lg: 20px;
   --fv-radius: 14px;

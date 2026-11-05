@@ -1091,17 +1091,17 @@ onUnmounted(() => {
   border-radius: 50%;
 }
 
-.legend-dot.male { background: #4A6B7C; }
-.legend-dot.female { background: #9C5B6B; }
+.legend-dot.male { background: var(--fv-male); }
+.legend-dot.female { background: var(--fv-female); }
 
 .legend-line {
   width: 16px;
   height: 2px;
-  background: #E5D9C7;
+  background: var(--fv-border);
 }
 
 .legend-wave {
-  color: #B4442E;
+  color: var(--fv-primary);
   font-size: 15px;
   font-weight: 600;
   line-height: 1;
@@ -1115,19 +1115,19 @@ onUnmounted(() => {
 
 .rel-add-btn {
   padding: 3px 10px;
-  border: 1px solid #e3d5c2;
+  border: 1px solid var(--fv-border-cream);
   border-radius: 999px;
-  background: #fdf8f0;
+  background: var(--fv-surface-cream);
   font-family: inherit;
   font-size: 12px;
-  color: #b4442e;
+  color: var(--fv-primary);
   cursor: pointer;
 }
 
 .relation-empty {
   margin: 8px 0 0;
   font-size: 12px;
-  color: #b3a28d;
+  color: var(--fv-ink-4);
 }
 
 .add-relation-form {
@@ -1143,7 +1143,7 @@ onUnmounted(() => {
   margin: 0 0 10px;
   text-align: center;
   font-size: 12px;
-  color: #8e7c69;
+  color: var(--fv-ink-3);
 }
 
 .rel-types {
@@ -1157,19 +1157,19 @@ onUnmounted(() => {
 
 .rel-type-btn {
   padding: 6px 14px;
-  border: 1px solid #e3d5c2;
+  border: 1px solid var(--fv-border-cream);
   border-radius: 999px;
-  background: #fffcf6;
+  background: var(--fv-surface-soft);
   font-family: inherit;
   font-size: 13px;
-  color: #5f5e5a;
+  color: var(--fv-ink-soft);
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .rel-type-btn.is-on {
-  background: #b4442e;
-  border-color: #b4442e;
+  background: var(--fv-primary);
+  border-color: var(--fv-primary);
   color: #fff;
 }
 
@@ -1306,7 +1306,7 @@ onUnmounted(() => {
   display: flex;
   gap: 10px;
   padding: 0 0 12px 14px;
-  border-left: 2px solid #E5D9C7;
+  border-left: 2px solid var(--fv-border);
   margin-left: 6px;
 }
 
@@ -1322,13 +1322,13 @@ onUnmounted(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #B4442E;
+  background: var(--fv-primary);
 }
 
 .tl-year {
   font-size: 12px;
   font-weight: 700;
-  color: #B4442E;
+  color: var(--fv-primary);
   min-width: 34px;
   font-variant-numeric: tabular-nums;
 }
@@ -1350,7 +1350,7 @@ onUnmounted(() => {
   aspect-ratio: 1;
   border-radius: 8px;
   overflow: hidden;
-  background: #F0E8DA;
+  background: var(--fv-paper-deep);
 }
 
 .photo-cell img {

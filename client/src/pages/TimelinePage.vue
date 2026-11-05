@@ -56,7 +56,7 @@
 
     <!-- 空状态 -->
     <div v-else class="empty-state">
-      <div class="empty-icon"><van-icon name="underway-o" size="40" color="#b3a28d" /></div>
+      <div class="empty-icon"><van-icon name="underway-o" size="40" color="var(--fv-ink-4)" /></div>
       <p class="empty-title">家族年轮还是一片空白</p>
       <p class="empty-desc">去「家族图谱」记录成员的重要年份，或在地图、传家宝里留下印记，这里就会自动长出一条家族历史线</p>
       <van-button class="empty-btn" type="primary" round @click="$router.push('/graph')">
@@ -328,9 +328,9 @@ const groups = computed(() => {
   box-shadow: 0 0 0 2px var(--fv-primary-soft);
 }
 
-.type-location .tl-dot { background: #4a6b7c; box-shadow: 0 0 0 2px #e9eef1; }
-.type-heirloom .tl-dot { background: #c99a5b; box-shadow: 0 0 0 2px #f6ead6; }
-.type-capsule .tl-dot { background: #9c5b6b; box-shadow: 0 0 0 2px #f6e9ec; }
+.type-location .tl-dot { background: var(--fv-map); box-shadow: 0 0 0 2px var(--fv-map-soft); }
+.type-heirloom .tl-dot { background: var(--fv-brass); box-shadow: 0 0 0 2px var(--fv-heirloom-soft); }
+.type-capsule .tl-dot { background: var(--fv-capsule); box-shadow: 0 0 0 2px var(--fv-capsule-soft); }
 
 .tl-card {
   background: var(--fv-surface);
@@ -355,9 +355,9 @@ const groups = computed(() => {
 }
 
 .tag-event { background: var(--fv-primary-soft); color: var(--fv-primary); }
-.tag-location { background: #e9eef1; color: #4a6b7c; }
-.tag-heirloom { background: #f6ead6; color: #b8834a; }
-.tag-capsule { background: #f6e9ec; color: #9c5b6b; }
+.tag-location { background: var(--fv-map-soft); color: var(--fv-map); }
+.tag-heirloom { background: var(--fv-heirloom-soft); color: var(--fv-heirloom); }
+.tag-capsule { background: var(--fv-capsule-soft); color: var(--fv-capsule); }
 
 .tl-title {
   font-size: 14px;
