@@ -9,22 +9,45 @@
     </router-view>
 
     <!-- 底部导航栏：登录/欢迎等独立页面不显示 -->
-    <van-tabbar v-if="!hideTabbar" v-model="activeTab" route>
-      <van-tabbar-item icon="home-o" to="/">首页</van-tabbar-item>
-      <van-tabbar-item icon="chat-o" to="/interview">采访</van-tabbar-item>
-      <van-tabbar-item icon="cluster-o" to="/graph">图谱</van-tabbar-item>
-      <van-tabbar-item icon="location-o" to="/map">地图</van-tabbar-item>
-      <van-tabbar-item icon="clock-o" to="/capsule">胶囊</van-tabbar-item>
+    <van-tabbar v-if="!hideTabbar" :model-value="activeTab" @change="onTabChange">
+      <van-tabbar-item
+        v-for="tab in tabs"
+        :key="tab.path"
+        :name="tab.path"
+        :icon="tab.icon"
+      >
+        {{ tab.label }}
+      </van-tabbar-item>
     </van-tabbar>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
-const activeTab = ref(0)
+const tabs = [
+  { path: '/', icon: 'home-o', label: '首页' },
+  { path: '/interview', icon: 'chat-o', label: '采访' },
+  { path: '/graph', icon: 'cluster-o', label: '图谱' },
+  { path: '/map', icon: 'location-o', label: '地图' },
+  { path: '/capsule', icon: 'clock-o', label: '胶囊' }
+]
+
 const route = useRoute()
+const router = useRouter()
+
+const activeTab = computed(() => {
+  const hit = tabs.find(t => t.path === route.path)
+  return hit ? hit.path : '/'
+})
+
+// 标签页之间用 replace，不往历史里堆栈：
+// 这样在任意标签页按安卓返回键都能直接退出，而不是一页页往回退
+const onTabChange = (path) => {
+  if (path === route.path) return
+  router.replace(path)
+}
 
 // 路由 meta.hideTabbar 优先，其次兜底独立页面
 const hideTabbar = computed(() => {

@@ -1,6 +1,6 @@
 <template>
   <div class="graph-page">
-    <van-nav-bar title="家族图谱" left-arrow @click-left="$router.back()" />
+    <van-nav-bar title="家族图谱" left-arrow @click-left="goHome" />
 
     <!-- 工具栏 -->
     <div v-if="hasMembers" class="toolbar">
@@ -271,12 +271,17 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import * as d3 from 'd3'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
 import EmptyState from '@/components/EmptyState.vue'
 import { resolveMediaUrl, uploadMedia } from '@/utils/media'
+
+const router = useRouter()
+// 统一回首页：不逐页后退，回到首页后安卓返回键可直接退出
+const goHome = () => router.replace('/')
 
 const graphContainer = ref(null)
 const searchQuery = ref('')

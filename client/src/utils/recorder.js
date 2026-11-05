@@ -39,10 +39,15 @@ class AudioRecorder {
         }
       })
 
-      // 创建 MediaRecorder
-      this.mediaRecorder = new MediaRecorder(this.stream, {
-        mimeType: this.getSupportedMimeType()
-      })
+      // 创建 MediaRecorder（部分手机浏览器不支持指定 mimeType，需降级）
+      try {
+        this.mediaRecorder = new MediaRecorder(this.stream, {
+          mimeType: this.getSupportedMimeType()
+        })
+      } catch (err) {
+        console.warn('指定 mimeType 创建录音失败，使用浏览器默认格式', err)
+        this.mediaRecorder = new MediaRecorder(this.stream)
+      }
 
       this.audioChunks = []
       this.startTime = Date.now()
@@ -89,9 +94,8 @@ class AudioRecorder {
       }
 
       this.mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(this.audioChunks, {
-          type: this.getSupportedMimeType()
-        })
+        const mime = (this.mediaRecorder && this.mediaRecorder.mimeType) || 'audio/webm'
+        const audioBlob = new Blob(this.audioChunks, { type: mime })
 
         const duration = this.duration
         this.audioChunks = []
@@ -99,7 +103,7 @@ class AudioRecorder {
         resolve({
           blob: audioBlob,
           duration: duration,
-          type: this.getSupportedMimeType()
+          type: mime
         })
       }
 
@@ -159,17 +163,31 @@ class AudioRecorder {
     const types = [
       'audio/webm;codecs=opus',
       'audio/webm',
+      'audio/mp4',
       'audio/ogg;codecs=opus',
-      'audio/mp4'
+      'audio/ogg',
+      'audio/aac',
+      'audio/3gpp'
     ]
 
     for (const type of types) {
-      if (MediaRecorder.isTypeSupported(type)) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) {
         return type
       }
     }
 
-    return 'audio/webm'
+    // 都识别不了就交给浏览器默认
+    return ''
+  }
+
+  /** 录音文件扩展名：服务端按扩展名 + MIME 判定类型 */
+  getFileExtension() {
+    const type = (this.mediaRecorder && this.mediaRecorder.mimeType) || this.getSupportedMimeType()
+    if (!type) return 'webm'
+    if (type.includes('mp4') || type.includes('aac') || type.includes('3gpp')) return 'm4a'
+    if (type.includes('ogg')) return 'ogg'
+    if (type.includes('wav')) return 'wav'
+    return 'webm'
   }
 
   /**

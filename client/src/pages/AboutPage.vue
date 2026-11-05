@@ -1,6 +1,6 @@
 <template>
   <div class="about-page">
-    <van-nav-bar title="关于" left-arrow @click-left="$router.back()" />
+    <van-nav-bar title="关于" left-arrow @click-left="goHome" />
 
     <div class="about-content">
       <!-- Logo 和名称 -->
@@ -241,12 +241,17 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import exportUtils from '@/utils/export'
 import storage from '@/utils/storage'
 import { authAPI, familyAPI } from '@/utils/api'
 import { getCloudSession, saveCloudBackup, loadCloudBackup, startWorkBuddyLogin } from '@/services/cloud'
+
+const router = useRouter()
+// 统一回首页：不逐页后退，回到首页后安卓返回键可直接退出
+const goHome = () => router.replace('/')
 
 const fileInput = ref(null)
 const family = ref(null)

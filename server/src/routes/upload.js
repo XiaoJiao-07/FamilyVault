@@ -39,8 +39,25 @@ const ALLOWED = {
   mp3: { ext: '.mp3', mime: 'audio/mpeg', kind: 'audio' },
   wav: { ext: '.wav', mime: 'audio/wav', kind: 'audio' },
   m4a: { ext: '.m4a', mime: 'audio/mp4', kind: 'audio' },
-  mp4: { ext: '.mp4', mime: 'video/mp4', kind: 'video' },
-  webm: { ext: '.webm', mime: 'video/webm', kind: 'video' }
+  aac: { ext: '.aac', mime: 'audio/aac', kind: 'audio' },
+  amr: { ext: '.amr', mime: 'audio/amr', kind: 'audio' },
+  ogg: { ext: '.ogg', mime: 'audio/ogg', kind: 'audio' },
+  oga: { ext: '.oga', mime: 'audio/ogg', kind: 'audio' },
+  opus: { ext: '.opus', mime: 'audio/ogg', kind: 'audio' },
+  // 浏览器 MediaRecorder 录音通常是 audio/webm：扩展名与视频相同，按 MIME 再判一次
+  webm: { ext: '.webm', mime: 'audio/webm', kind: 'audio' },
+  mp4: { ext: '.mp4', mime: 'video/mp4', kind: 'video' }
+}
+
+/** 扩展名 + MIME 联合判定：audio/webm 这类共用扩展名的录音才不会被当成视频 */
+function resolveType(file) {
+  const mime = String(file?.mimetype || '')
+  if (mime.startsWith('audio/')) {
+    const byExt = pickType(file.originalname)
+    const ext = byExt?.ext || (mime.includes('mp4') ? '.m4a' : '.webm')
+    return { ext, mime, kind: 'audio' }
+  }
+  return pickType(file?.originalname)
 }
 
 function pickType(originalName) {
@@ -51,7 +68,7 @@ function pickType(originalName) {
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
-    const type = pickType(file.originalname)
+    const type = resolveType(file)
     // 服务端随机命名，不使用用户提供的文件名
     cb(null, `${Date.now()}-${crypto.randomUUID()}${type ? type.ext : ''}`)
   }
@@ -61,7 +78,7 @@ const upload = multer({
   storage,
   limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE, 10) || 100 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (pickType(file.originalname)) return cb(null, true)
+    if (resolveType(file)) return cb(null, true)
     cb(new Error('不支持的文件类型'))
   }
 })
@@ -119,7 +136,7 @@ async function withFamily(req, res, next) {
 }
 
 function saveMedia(req, file) {
-  const type = pickType(file.originalname)
+  const type = resolveType(file)
   req.db.run(
     `INSERT INTO media_files (filename, original_name, mime_type, size, kind, family_id, uploaded_by)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -147,7 +164,7 @@ function saveMedia(req, file) {
 router.post('/image', authRequired, withFamily, upload.single('image'), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: '请上传图片' })
-    if (pickType(req.file.originalname).kind !== 'image') {
+    if (resolveType(req.file)?.kind !== 'image') {
       fs.unlinkSync(req.file.path)
       return res.status(400).json({ success: false, message: '只支持图片' })
     }
@@ -162,7 +179,7 @@ router.post('/image', authRequired, withFamily, upload.single('image'), (req, re
 router.post('/audio', authRequired, withFamily, upload.single('audio'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: '请上传音频' })
-    if (pickType(req.file.originalname).kind !== 'audio') {
+    if (resolveType(req.file)?.kind !== 'audio') {
       fs.unlinkSync(req.file.path)
       return res.status(400).json({ success: false, message: '只支持音频' })
     }

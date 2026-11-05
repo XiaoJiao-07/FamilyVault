@@ -1,6 +1,6 @@
 <template>
   <div class="timeline-page">
-    <van-nav-bar title="家族年轮" left-arrow @click-left="$router.back()" />
+    <van-nav-bar title="家族年轮" left-arrow @click-left="goHome" />
 
     <!-- 顶部说明 -->
     <div class="timeline-intro">
@@ -67,8 +67,13 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
 import { ref, computed } from 'vue'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
+
+const router = useRouter()
+// 统一回首页：不逐页后退，回到首页后安卓返回键可直接退出
+const goHome = () => router.replace('/')
 
 const filters = [
   { key: 'all', label: '全部' },

@@ -1,6 +1,6 @@
 <template>
   <div class="heirloom-page">
-    <van-nav-bar title="传家宝" left-arrow @click-left="$router.back()" />
+    <van-nav-bar title="传家宝" left-arrow @click-left="goHome" />
 
     <!-- 传家宝列表 -->
     <div class="heirloom-list">
@@ -150,10 +150,15 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
 import { ref, computed } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
 import EmptyState from '@/components/EmptyState.vue'
+
+const router = useRouter()
+// 统一回首页：不逐页后退，回到首页后安卓返回键可直接退出
+const goHome = () => router.replace('/')
 
 const activeTab = ref('all')
 const showDetailPopup = ref(false)

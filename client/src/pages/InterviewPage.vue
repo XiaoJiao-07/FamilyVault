@@ -1,7 +1,7 @@
 <template>
   <div class="interview-page">
     <!-- 顶部导航 -->
-    <van-nav-bar title="采访" left-arrow @click-left="$router.back()">
+    <van-nav-bar title="采访" left-arrow @click-left="goHome">
       <template #right>
         <van-icon name="clock-o" size="20" @click="showHistory = true" />
       </template>
@@ -12,8 +12,8 @@
       <span class="ai-dot" />
       <span class="ai-text">
         {{ aiMode === 'live'
-          ? `AI 已连接${aiLabel ? '（' + aiLabel + '）' : ''}`
-          : 'AI 演示模式：未配置大模型，话题来自内置问题库' }}
+          ? `AI 采访助手已连接${aiLabel ? '（' + aiLabel + '）' : ''}`
+          : '提纲模式：没连接 AI，按问题一问一答记录就好' }}
       </span>
       <span v-if="aiThinking" class="ai-thinking">正在思考…</span>
     </div>
@@ -143,11 +143,25 @@
         <div
           v-for="(message, index) in messages"
           :key="index"
-          :class="['message-item', message.role]"
+          :class="['message-item', message.role, { 'is-question': message.kind === 'question' }]"
         >
-          <div v-if="message.role === 'ai'" class="message-avatar ai-avatar">AI</div>
+          <div v-if="message.role === 'ai' && message.kind !== 'question'" class="message-avatar ai-avatar">AI</div>
           <div class="message-content">
-            <div class="message-bubble" :class="message.role">{{ message.text }}</div>
+            <div v-if="message.kind === 'question'" class="question-card">
+              <div class="question-label">
+                <van-icon name="question-o" size="13" /> 采访提纲
+              </div>
+              <div class="question-text">{{ message.text }}</div>
+              <div class="question-skip" @click="skipQuestion">跳过这题，换下一个</div>
+            </div>
+            <div v-else class="message-bubble" :class="message.role">{{ message.text }}</div>
+            <audio
+              v-if="message.audioUrl"
+              :src="message.audioUrl"
+              controls
+              preload="none"
+              class="voice-audio"
+            />
             <div class="message-time">{{ message.time }}</div>
           </div>
         </div>
@@ -215,7 +229,8 @@
           class="record-btn"
           @click="startRecording"
         >
-          <van-icon name="audio" size="18" style="margin-right: 6px" /> 点击录音
+          <van-icon name="audio" size="18" style="margin-right: 6px" />
+          {{ speechSupported ? '点击录音' : '录音（保存为语音）' }}
         </van-button>
 
         <van-button
@@ -314,19 +329,31 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import speechRecognizer from '@/utils/speech'
+import audioRecorder from '@/utils/recorder'
+import { mediaAPI } from '@/utils/api'
+import { resolveMediaUrl } from '@/utils/media'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
 import { interviewAPI } from '@/utils/api'
 import { cloudChat, getCloudSession } from '@/services/cloud'
 import EmptyState from '@/components/EmptyState.vue'
+
+const router = useRouter()
+// 统一回首页：不逐页后退，回到首页后安卓返回键可直接退出
+const goHome = () => router.replace('/')
 
 // 从 localStorage 加载采访对象
 const interviewees = ref(storage.get(STORAGE_KEYS.INTERVIEWEES, []))
 const aiMode = ref('demo')
 const aiLabel = ref('')
 const aiThinking = ref(false)
+// 浏览器是否支持原生语音转文字（安卓 WebView / 微信内置浏览器通常不支持）
+const speechSupported = ref(Boolean(speechRecognizer.recognition))
+// 不支持转写时，改为「只录音、存成语音留言」
+const audioRecordMode = ref(false)
 
 const applyAiMode = (demo) => {
   aiMode.value = demo ? 'demo' : 'live'
@@ -403,51 +430,6 @@ const topicPool = {
     '您年轻时候有什么遗憾的事吗？',
     '您最希望我成为什么样的人？'
   ]
-}
-
-// 根据用户输入生成回应 - 更自然的对话风格
-const generateResponse = (userText) => {
-  const text = userText
-
-  // 更自然的回应，带语气词和情感
-  const responseMap = [
-    { keywords: ['相亲', '介绍', '媒人'], responses: ['哦，相亲认识的啊', '那时候相亲挺正式的吧', '原来是相亲认识的'] },
-    { keywords: ['结婚', '婚礼', '办酒'], responses: ['那时候婚礼肯定很热闹', '办酒席一定很忙吧', '结婚那天肯定很难忘'] },
-    { keywords: ['上学', '读书', '学校'], responses: ['那时候上学不容易啊', '读书条件艰苦吧', '能上学就很好了'] },
-    { keywords: ['工作', '上班', '干活'], responses: ['那时候工作可没现在轻松', '肯定吃了不少苦', '干活累吧'] },
-    { keywords: ['孩子', '养大', '带大'], responses: ['带孩子真不容易', '几个孩子都带大了，厉害', '养孩子辛苦啊'] },
-    { keywords: ['困难', '艰难', '苦'], responses: ['那段日子确实难', '挺过来就不容易', '苦日子都过去了'] },
-    { keywords: ['开心', '高兴', '快乐'], responses: ['那挺好的', '听起来不错', '开心就好'] },
-    { keywords: ['菜', '做饭', '拿手'], responses: ['听着就好吃', '怎么做的啊', '教教我呗'] },
-    { keywords: ['过年', '春节'], responses: ['过年最热闹了', '那时候过年有意思', '年味浓吧'] },
-    { keywords: ['爷爷', '奶奶', '祖'], responses: ['老一辈的故事啊', '他们那时候不容易', '老人家故事多'] },
-    { keywords: ['爸爸', '妈妈', '父', '母'], responses: ['父母那辈人辛苦', '他们对你好吗', '跟爸妈关系怎么样'] },
-    { keywords: ['变化', '以前', '现在'], responses: ['变化确实大', '现在跟以前不一样了', '这些年改变得多'] }
-  ]
-
-  // 查找匹配
-  for (const item of responseMap) {
-    if (item.keywords.some(k => text.includes(k))) {
-      const responses = item.responses
-      return responses[Math.floor(Math.random() * responses.length)]
-    }
-  }
-
-  // 更自然的默认回应
-  const defaults = [
-    '嗯，然后呢',
-    '后来怎么样了',
-    '哦哦',
-    '这样啊',
-    '嗯嗯',
-    '明白了',
-    '继续说',
-    '还有吗',
-    '真的啊',
-    '那挺好的'
-  ]
-
-  return defaults[Math.floor(Math.random() * defaults.length)]
 }
 
 // 格式化时长
@@ -616,24 +598,42 @@ const requestAiTurn = async (userText) => {
         history: messages.value.slice(0, -1),
         userText
       })
-      if (result.success) {
+      // demo 文本是内置话术，会显得很假，直接忽略，走提纲模式
+      if (result.success && result.data?.text && !result.data.demo) {
         text = result.data.text
-        applyAiMode(result.data.demo)
+        applyAiMode(false)
       }
     } catch (err) {
-      console.warn('AI 接口不可用，使用本地话题', err)
+      console.warn('AI 接口不可用，使用采访提纲', err)
     }
   }
 
   aiThinking.value = false
 
   if (!text) {
-    text = `${generateResponse(userText)}\n\n${getNextTopic()}`
     applyAiMode(true)
+    pushNextQuestion()
+    return
   }
 
   messages.value.push({ role: 'ai', text, time: getCurrentTime() })
   scrollToBottom()
+}
+
+// 没有 AI 时：只把下一个问题摆出来，不假装对话
+const pushNextQuestion = () => {
+  messages.value.push({
+    role: 'ai',
+    kind: 'question',
+    text: getNextTopic(),
+    time: getCurrentTime()
+  })
+  scrollToBottom()
+}
+
+// 跳过这一题
+const skipQuestion = () => {
+  pushNextQuestion()
 }
 
 // 开始采访
@@ -665,20 +665,30 @@ const startInterview = async () => {
   } else {
     try {
       const result = await interviewAPI.opening(selectedInterviewee.value)
-      if (result.success) {
+      if (result.success && result.data?.text && !result.data.demo) {
         text = result.data.text
-        applyAiMode(result.data.demo)
+        applyAiMode(false)
       }
     } catch (err) {
-      console.warn('AI 接口不可用，使用本地话题', err)
+      console.warn('AI 接口不可用，使用采访提纲', err)
     }
   }
 
   aiThinking.value = false
 
   if (!text) {
-    text = `${selectedInterviewee.value.name}，我是家里的 AI 采访助手，想听您讲讲过去的事。\n${getNextTopic()}`
     applyAiMode(true)
+    messages.value = [
+      {
+        role: 'ai',
+        kind: 'question',
+        text: `我们照采访提纲慢慢聊，一次一个问题。回答不上来就说「跳过」。\n\n${getNextTopic()}`,
+        time: getCurrentTime()
+      }
+    ]
+    showToast('采访已开始')
+    scrollToBottom()
+    return
   }
 
   messages.value = [{ role: 'ai', text, time: getCurrentTime() }]
@@ -688,10 +698,10 @@ const startInterview = async () => {
 }
 
 // 开始录音
-const startRecording = () => {
-  // 检查浏览器支持
+const startRecording = async () => {
+  // 不支持语音转文字：退回纯录音，照样能留下长辈的声音
   if (!speechRecognizer.recognition) {
-    showToast('浏览器不支持语音，请用手动输入或换 Chrome/Edge')
+    await startAudioOnlyRecording()
     return
   }
 
@@ -753,6 +763,79 @@ const startRecording = () => {
   }
 }
 
+// 不支持语音转写的浏览器：用 MediaRecorder 纯录音，保存成语音留言
+const startAudioOnlyRecording = async () => {
+  try {
+    await audioRecorder.start()
+    audioRecordMode.value = true
+    isRecording.value = true
+    recordingDuration.value = 0
+    durationTimer = setInterval(() => {
+      recordingDuration.value++
+    }, 1000)
+    showToast('正在录音，说完点「停止录音」')
+  } catch (err) {
+    isRecording.value = false
+    const msg = err?.name === 'NotAllowedError'
+      ? '麦克风权限被拒绝，请在浏览器设置里允许后再试'
+      : (err?.message || '录音启动失败')
+    showToast(msg)
+  }
+}
+
+const stopAudioOnlyRecording = async () => {
+  let record = null
+  try {
+    record = await audioRecorder.stop()
+  } catch {
+    record = null
+  }
+  if (!record || !record.blob || record.blob.size < 200) {
+    audioRecordMode.value = false
+    isTranscribing.value = false
+    showToast('没录到声音，请再试一次')
+    return
+  }
+
+  const duration = record.duration || recordingDuration.value
+  const ext = audioRecorder.getFileExtension()
+  const file = audioRecorder.blobToFile(record.blob, `interview-${Date.now()}.${ext}`)
+  const res = await mediaAPI.uploadAudio(file, duration)
+  audioRecordMode.value = false
+  isTranscribing.value = false
+
+  if (!res.success) {
+    showToast(res.message || '录音保存失败')
+    return
+  }
+
+  const { filename, url, transcription, demo } = res.data || {}
+
+  // 服务端配置了语音识别：直接把转写结果当作回答
+  if (transcription && !demo) {
+    messages.value.push({ role: 'user', text: transcription, time: getCurrentTime() })
+    scrollToBottom()
+    await requestAiTurn(transcription)
+    recordingDuration.value = 0
+    return
+  }
+
+  // 没转写就存成可回放的语音留言，然后继续问下一个问题
+  const playUrl = url || (filename ? await resolveMediaUrl(filename) : null)
+  messages.value.push({
+    role: 'user',
+    text: `语音留言 ${formatDuration(duration)}`,
+    audio: filename || '',
+    audioUrl: playUrl || '',
+    time: getCurrentTime()
+  })
+  audioRecordMode.value = false
+  isTranscribing.value = false
+  scrollToBottom()
+  pushNextQuestion()
+  recordingDuration.value = 0
+}
+
 // 停止录音
 const stopRecording = async () => {
   if (!isRecording.value) return
@@ -763,6 +846,11 @@ const stopRecording = async () => {
   if (durationTimer) {
     clearInterval(durationTimer)
     durationTimer = null
+  }
+
+  if (audioRecordMode.value) {
+    await stopAudioOnlyRecording()
+    return
   }
 
   // 停止语音识别并获取最终文本
@@ -949,7 +1037,9 @@ onUnmounted(() => {
 .interview-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  /* 减去底部标签栏的 50px，否则录音按钮会被标签栏压住 */
+  height: calc(100vh - 50px);
+  height: calc(100dvh - 50px);
   background: var(--fv-paper);
 }
 
@@ -1188,6 +1278,55 @@ onUnmounted(() => {
   padding: 0 4px;
 }
 
+/* 提纲卡片：没有 AI 时只给问题，不假装对话 */
+.message-item.is-question .message-content {
+  max-width: 88%;
+}
+
+.question-card {
+  background: var(--fv-surface-cream, #fdf7ec);
+  border: 1px solid var(--fv-border-cream);
+  border-radius: 14px;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.question-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--fv-brass);
+  margin-bottom: 6px;
+}
+
+.question-text {
+  font-family: var(--fv-font-serif);
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--fv-ink-2);
+  white-space: pre-wrap;
+}
+
+.question-skip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--fv-ink-4);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  display: inline-block;
+}
+
+/* 语音留言播放器 */
+.voice-audio {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  height: 36px;
+  margin-top: 6px;
+}
+
 /* 录音指示器 */
 .recording-indicator {
   display: flex;
@@ -1284,6 +1423,14 @@ onUnmounted(() => {
 
 .manual-input {
   margin-bottom: 10px;
+}
+
+/* 发送按钮右对齐，避免和整条录音按钮挤在一起显得乱 */
+.manual-input .van-button {
+  display: block;
+  margin-left: auto !important;
+  margin-top: 8px !important;
+  padding: 0 20px;
 }
 
 .manual-input :deep(.van-field) {

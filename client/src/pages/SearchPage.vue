@@ -1,6 +1,6 @@
 <template>
   <div class="search-page">
-    <van-nav-bar title="搜索" left-arrow @click-left="$router.back()">
+    <van-nav-bar title="搜索" left-arrow @click-left="goHome">
       <template #right>
         <van-icon name="search" size="18" />
       </template>
@@ -98,6 +98,8 @@ import { useRouter } from 'vue-router'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
 
 const router = useRouter()
+// 统一回首页：不逐页后退
+const goHome = () => router.replace('/')
 const searchQuery = ref('')
 const isSearching = ref(false)
 const isLoading = ref(false)
