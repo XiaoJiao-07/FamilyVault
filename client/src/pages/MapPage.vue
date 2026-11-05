@@ -305,8 +305,20 @@ const onDragEnd = () => {
   window.removeEventListener('pointercancel', onDragEnd)
   const pts = snapPoints()
   const cur = sheetHeight.value
-  const nearest = pts.reduce((a, b) => (Math.abs(b - cur) < Math.abs(a - cur) ? b : a), pts[0])
-  sheetHeight.value = nearest
+  const moved = cur - dragStartH // 向上拖（抽屉变高）为正
+  // 就近吸附，但按拖动方向轻微加权：正好卡在中间时，顺着手的意图走
+  let best = pts[0]
+  let bestD = Infinity
+  pts.forEach((v) => {
+    let d = Math.abs(v - cur)
+    if (moved > 0 && v > cur) d -= 26
+    if (moved < 0 && v < cur) d -= 26
+    if (d < bestD) {
+      bestD = d
+      best = v
+    }
+  })
+  sheetHeight.value = best
 }
 
 const onHeadClick = () => {
@@ -537,10 +549,13 @@ const setPicked = (lat, lng, { source = '', address = '' } = {}) => {
   if (!address) refreshAddress()
 }
 
-/** 把地名库/搜索的 WGS-84 结果落成图上的 GCJ-02 位置 */
+/** 把地名库/搜索的结果落成图上的 GCJ-02 位置 */
 const applyPlace = (place, { source = '搜索结果', fly = true } = {}) => {
-  const g = wgs84ToGcj02(place.latitude, place.longitude)
-  if (!g) return
+  // 高德直出就是 GCJ-02，OSM 系是 WGS-84，必须转换后再上图，否则偏几百米
+  const g = place.coordSys === 'gcj02'
+    ? { latitude: Number(place.latitude), longitude: Number(place.longitude) }
+    : wgs84ToGcj02(place.latitude, place.longitude)
+  if (!g || !isValidCoord(g.latitude, g.longitude)) return
   pickedCoord.value = g
   pickedSource.value = source
   pickedAddress.value = place.address || place.name || ''

@@ -15,6 +15,10 @@ const BASE = (process.env.GEOCODE_API_URL || 'https://photon.komoot.io').replace
 const TIMEOUT = Number(process.env.GEOCODE_TIMEOUT || 7000)
 const UA = 'FamilyVault/1.0 (family memory map; +https://familyvault.app.workbuddy.host)'
 
+// 可选：填了高德 Web 服务 key 就优先用高德。
+// 中文地名、乡镇村落的覆盖比 OSM 好得多，而且返回的就是 GCJ-02（底图坐标系），不用再转换。
+const AMAP_KEY = process.env.AMAP_KEY || ''
+
 // 进程内缓存：同一个地名反复搜（AI 识别 + 用户搜索）不必重复出去
 const CACHE_MAX = 400
 const CACHE_TTL = 24 * 60 * 60 * 1000
@@ -79,20 +83,80 @@ function toPlace(feature) {
  * 地名搜索
  * @param {string} query 地名，如"武汉大学"
  * @param {{limit?:number, lat?:number, lng?:number}} opts lat/lng 用于结果加权（优先附近）
- * @returns {Promise<Array>} 结果列表（可能为空）
+ * @returns {Promise<Array>} 结果列表（可能为空）。每项都带 coordSys：
+ *   'gcj02'（高德直出，可直接上图）或 'wgs84'（OSM 系，前端需转换）
  */
 export async function searchPlaces(query, opts = {}) {
   const q = clean(query).slice(0, 80)
   if (!q) return []
 
   const limit = Math.min(Math.max(Number(opts.limit) || 5, 1), 10)
+  const key = `s:${q}|${limit}|${AMAP_KEY ? 'amap' : 'photon'}`
+
+  const cached = cacheGet(key)
+  if (cached) return cached
+
+  let places = []
+  if (AMAP_KEY) {
+    try {
+      places = await searchByAmap(q, limit, opts)
+    } catch (err) {
+      console.warn('高德地名检索失败，回退 OSM：', err.message)
+    }
+  }
+  if (!places.length) {
+    places = await searchByPhoton(q, limit, opts)
+  }
+
+  cacheSet(key, places)
+  return places
+}
+
+/** 高德 POI 检索（返回 GCJ-02） */
+async function searchByAmap(q, limit, opts) {
+  const base = { key: AMAP_KEY, keywords: q, offset: limit, page: 1, extensions: 'base' }
+  if (Number.isFinite(Number(opts.lat)) && Number.isFinite(Number(opts.lng))) {
+    base.location = `${Number(opts.lng)},${Number(opts.lat)}`
+  }
+  const res = await axios.get('https://restapi.amap.com/v3/place/text', {
+    params: base,
+    timeout: TIMEOUT,
+    validateStatus: () => true
+  })
+  if (res.data?.status !== '1') return []
+  const pois = Array.isArray(res.data.pois) ? res.data.pois : []
+  return pois
+    .map((p) => {
+      const [lng, lat] = String(p.location || '').split(',').map(Number)
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+      const province = clean(p.pname)
+      const city = clean(p.cityname)
+      const district = clean(p.adname)
+      const address = [province, city, district, clean(p.address)]
+        .filter(Boolean)
+        .filter((v, i, arr) => arr.indexOf(v) === i)
+        .join(' ')
+      return {
+        name: clean(p.name) || q,
+        address,
+        province,
+        city,
+        district,
+        country: '中国',
+        latitude: lat,
+        longitude: lng,
+        kind: `amap/${clean(p.typecode)}`,
+        coordSys: 'gcj02'
+      }
+    })
+    .filter(Boolean)
+}
+
+/** Photon（OpenStreetMap，免密钥，返回 WGS-84） */
+async function searchByPhoton(q, limit, opts) {
   const biasLat = Number(opts.lat)
   const biasLng = Number(opts.lng)
   const hasBias = Number.isFinite(biasLat) && Number.isFinite(biasLng)
-
-  const key = `s:${q}|${limit}|${hasBias ? `${biasLat.toFixed(2)},${biasLng.toFixed(2)}` : ''}`
-  const cached = cacheGet(key)
-  if (cached) return cached
 
   const params = { q, limit: Math.max(limit, 6) }
   // lat/lon 只做"就近加权"，不是必填；带错参数会被服务端 400 拒掉，所以下面有降级重试
@@ -118,10 +182,11 @@ export async function searchPlaces(query, opts = {}) {
 
   if (res.status >= 400) throw new Error(`geocode ${res.status}`)
   const features = Array.isArray(res.data?.features) ? res.data.features : []
-  const places = features.map(toPlace).filter(Boolean).slice(0, limit)
-
-  cacheSet(key, places)
-  return places
+  return features
+    .map(toPlace)
+    .filter(Boolean)
+    .slice(0, limit)
+    .map((p) => ({ ...p, coordSys: 'wgs84' }))
 }
 
 /**
@@ -149,7 +214,7 @@ export async function reverseGeocode(lat, lng) {
   const features = Array.isArray(res.data?.features) ? res.data.features : []
   const place = features.length ? toPlace(features[0]) : null
   cacheSet(key, place)
-  return place
+  return place ? { ...place, coordSys: 'wgs84' } : null
 }
 
 /** 供 /api/health 之类展示，判断服务是否可用 */
