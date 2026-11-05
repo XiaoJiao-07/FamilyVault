@@ -4,6 +4,14 @@
 
     <!-- 胶囊列表 -->
     <div class="capsule-list">
+      <EmptyState
+        v-if="!capsules.length"
+        icon="clock-o"
+        title="还没有写给未来的信"
+        desc="挑一个特别的日子，把此刻想对家人说的话封存起来。到期那天，TA 才能读到你今天的心情。"
+        action-text="写第一封时光信"
+        @action="showCreate = true"
+      />
       <div
         v-for="capsule in capsules"
         :key="capsule.id"
@@ -138,6 +146,7 @@
 import { ref, onMounted } from 'vue'
 import { showToast } from 'vant'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
+import EmptyState from '@/components/EmptyState.vue'
 
 const capsules = ref([])
 const showCreate = ref(false)
@@ -152,39 +161,7 @@ const newCapsule = ref({
   message_type: 'text'
 })
 
-// 默认胶囊数据（首次使用时）
-const defaultCapsules = [
-  {
-    id: 1,
-    from_person: '爸爸',
-    to_person: '未来的儿子',
-    title: '给 30 岁的你',
-    content: '儿子，当你看到这个的时候，应该已经 30 岁了。爸爸想告诉你，无论遇到什么困难，都要保持乐观。人生没有过不去的坎，只有过不去的心情。记住，家永远是你的港湾。',
-    message_type: 'text',
-    unlock_date: '2035-01-01',
-    is_unlocked: false
-  },
-  {
-    id: 2,
-    from_person: '妈妈',
-    to_person: '女儿',
-    title: '结婚当天的祝福',
-    content: '亲爱的女儿，今天是你结婚的日子，妈妈为你感到骄傲。从你出生的那一刻起，你就是妈妈最珍贵的礼物。现在你找到了自己的幸福，妈妈真心祝福你。',
-    message_type: 'text',
-    unlock_date: '2025-06-01',
-    is_unlocked: true
-  },
-  {
-    id: 3,
-    from_person: '爷爷',
-    to_person: '曾孙',
-    title: '家族的故事',
-    content: '孩子，我是你的曾祖父。虽然你可能没见过我，但我想告诉你我们家族的故事。我们是从湖北武汉走出来的，一代代人勤劳朴实...',
-    message_type: 'text',
-    unlock_date: '2040-01-01',
-    is_unlocked: false
-  }
-]
+// 不再预置任何示例胶囊：首屏为空，等用户写给家人
 
 // 保存胶囊到 localStorage
 const saveCapsules = () => {
@@ -194,7 +171,7 @@ const saveCapsules = () => {
 // 加载胶囊
 const loadCapsules = () => {
   const saved = storage.get(STORAGE_KEYS.TIME_CAPSULES, null)
-  const data = saved || defaultCapsules
+  const data = Array.isArray(saved) ? saved : []
 
   const now = new Date()
   capsules.value = data.map(c => {
@@ -207,11 +184,6 @@ const loadCapsules = () => {
       can_unlock: isDue && !c.is_unlocked
     }
   })
-
-  // 如果是首次，保存到 localStorage
-  if (!saved) {
-    saveCapsules()
-  }
 }
 
 // 创建胶囊

@@ -48,6 +48,15 @@
         </div>
       </div>
 
+      <!-- 还没有采访对象 -->
+      <EmptyState
+        v-else
+        compact
+        icon="friends-o"
+        title="还没有采访对象"
+        desc="在下面填一位家人的称呼就能开始；录下的对话会按人物存好，随时翻回来听。"
+      />
+
       <!-- 添加新采访对象 -->
       <div class="add-section">
         <div class="section-subtitle">或添加新采访对象</div>
@@ -304,6 +313,7 @@ import speechRecognizer from '@/utils/speech'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
 import { interviewAPI } from '@/utils/api'
 import { cloudChat, getCloudSession } from '@/services/cloud'
+import EmptyState from '@/components/EmptyState.vue'
 
 // 从 localStorage 加载采访对象
 const interviewees = ref(storage.get(STORAGE_KEYS.INTERVIEWEES, []))
@@ -888,43 +898,7 @@ onMounted(async () => {
     }
   } catch { /* 未连接云账号 */ }
 
-  // 初始化默认采访对象（如果是首次使用且为空）
-  if (interviewees.value.length === 0) {
-    const defaults = [
-      {
-        id: 1,
-        name: '爷爷',
-        age: 74,
-        hometown: '湖北武汉',
-        relationship: '祖父',
-        color: 'var(--fv-primary)',
-        sessions_count: 0,
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 2,
-        name: '奶奶',
-        age: 72,
-        hometown: '四川成都',
-        relationship: '祖母',
-        color: '#af52de',
-        sessions_count: 0,
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 3,
-        name: '爸爸',
-        age: 46,
-        hometown: '湖北武汉',
-        relationship: '父亲',
-        color: 'var(--fv-primary-deep)',
-        sessions_count: 0,
-        created_at: new Date().toISOString()
-      }
-    ]
-    interviewees.value = defaults
-    saveInterviewees()
-  }
+  // 不预置任何示例采访对象：用户没加过就是空的，先让自己的家人出现在这里
 })
 
 onUnmounted(() => {

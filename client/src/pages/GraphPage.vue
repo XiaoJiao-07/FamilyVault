@@ -3,7 +3,7 @@
     <van-nav-bar title="家族图谱" left-arrow @click-left="$router.back()" />
 
     <!-- 工具栏 -->
-    <div class="toolbar">
+    <div v-if="hasMembers" class="toolbar">
       <van-search
         v-model="searchQuery"
         placeholder="搜索家族成员..."
@@ -22,10 +22,20 @@
     </div>
 
     <!-- D3 图谱容器 -->
-    <div ref="graphContainer" class="graph-canvas"></div>
+    <div v-show="hasMembers" ref="graphContainer" class="graph-canvas"></div>
+
+    <!-- 空状态：不预置任何示例成员，等你自己录入 -->
+    <EmptyState
+      v-if="!hasMembers"
+      icon="friends-o"
+      title="家谱还是一张白纸"
+      desc="从最熟悉的那位家人开始：写个名字、出生年份、一句还记得的事。家谱会随记录慢慢长出来，这里不会替你编故事。"
+      action-text="添加第一位家人"
+      @action="openAddMember"
+    />
 
     <!-- 图例 -->
-    <div class="legend">
+    <div v-if="hasMembers" class="legend">
       <div class="legend-item">
         <span class="legend-dot male"></span>
         <span>男</span>
@@ -265,6 +275,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import * as d3 from 'd3'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
+import EmptyState from '@/components/EmptyState.vue'
 import { resolveMediaUrl, uploadMedia } from '@/utils/media'
 
 const graphContainer = ref(null)
@@ -285,45 +296,18 @@ const newMember = ref({
   events: []
 })
 
-// 默认家族数据
-const defaultNodes = [
-  { id: 1, name: '曾祖父', gender: '男', birthYear: 1920, hometown: '湖北武汉', occupation: '商人', color: '#4A6B7C' },
-  { id: 2, name: '曾祖母', gender: '女', birthYear: 1922, hometown: '湖北武汉', occupation: '家庭主妇', color: '#9C5B6B' },
-  { id: 3, name: '爷爷', gender: '男', birthYear: 1950, hometown: '湖北武汉', occupation: '工程师', color: '#4A6B7C' },
-  { id: 4, name: '奶奶', gender: '女', birthYear: 1952, hometown: '四川成都', occupation: '教师', color: '#9C5B6B' },
-  { id: 5, name: '大伯', gender: '男', birthYear: 1975, hometown: '湖北武汉', occupation: '医生', color: '#4A6B7C' },
-  { id: 6, name: '爸爸', gender: '男', birthYear: 1978, hometown: '湖北武汉', occupation: '程序员', color: '#4A6B7C' },
-  { id: 7, name: '妈妈', gender: '女', birthYear: 1980, hometown: '湖南长沙', occupation: '会计', color: '#9C5B6B' },
-  { id: 8, name: '我', gender: '男', birthYear: 2005, hometown: '湖北武汉', occupation: '学生', color: '#4A6B7C' },
-  { id: 9, name: '堂哥', gender: '男', birthYear: 2003, hometown: '湖北武汉', occupation: '大学生', color: '#4A6B7C' },
-  { id: 10, name: '姑姑', gender: '女', birthYear: 1982, hometown: '湖北武汉', occupation: '设计师', color: '#9C5B6B' }
-]
-
-const defaultEdges = [
-  { source: 1, target: 2, label: '夫妻' },
-  { source: 1, target: 3, label: '父子' },
-  { source: 2, target: 3, label: '母子' },
-  { source: 3, target: 4, label: '夫妻' },
-  { source: 3, target: 5, label: '父子' },
-  { source: 3, target: 6, label: '父子' },
-  { source: 3, target: 10, label: '父女' },
-  { source: 4, target: 5, label: '母子' },
-  { source: 4, target: 6, label: '母子' },
-  { source: 4, target: 10, label: '母女' },
-  { source: 6, target: 7, label: '夫妻' },
-  { source: 6, target: 8, label: '父子' },
-  { source: 7, target: 8, label: '母子' },
-  { source: 5, target: 9, label: '父子' }
-]
-
-// 从 localStorage 加载数据，如果没有则使用默认数据
+// 不预置任何示例成员/关系：数据全部来自用户真实录入
+// 从 localStorage 加载数据，没有就是空的，等用户录入
 const savedNodes = storage.get(STORAGE_KEYS.FAMILY_MEMBERS, null)
 const savedEdges = storage.get(STORAGE_KEYS.FAMILY_RELATIONSHIPS, null)
 
 const graphData = ref({
-  nodes: savedNodes || [...defaultNodes],
-  edges: savedEdges || [...defaultEdges]
+  nodes: Array.isArray(savedNodes) ? savedNodes : [],
+  edges: Array.isArray(savedEdges) ? savedEdges : []
 })
+
+const hasMembers = computed(() => graphData.value.nodes.length > 0)
+
 
 // 保存数据到 localStorage
 const idOf = v => (typeof v === 'object' && v !== null ? v.id : v)
@@ -365,6 +349,8 @@ const saveGraphData = () => {
 // 加载图谱数据
 const loadGraphData = async () => {
   await nextTick()
+  // 没有任何成员时不渲染画布，交给空状态引导
+  if (!hasMembers.value) return
   if (viewMode.value === 'tree') renderTree()
   else renderGraph()
 }
@@ -372,6 +358,10 @@ const loadGraphData = async () => {
 // 渲染 D3 图谱
 const renderGraph = () => {
   if (!graphContainer.value) return
+  if (!graphData.value.nodes.length) {
+    d3.select(graphContainer.value).selectAll('*').remove()
+    return
+  }
 
   const container = graphContainer.value
   const width = container.clientWidth
@@ -602,6 +592,10 @@ const CARD_GAP = 18
 const renderTree = () => {
   const container = graphContainer.value
   if (!container) return
+  if (!graphData.value.nodes.length) {
+    d3.select(container).selectAll('*').remove()
+    return
+  }
 
   const width = container.clientWidth
   d3.select(container).selectAll('*').remove()
@@ -1063,6 +1057,12 @@ onUnmounted(() => {
   overflow: hidden;
   background: var(--fv-surface);
   min-height: 400px;
+}
+
+/* 空状态撑满剩余空间并垂直居中 */
+.graph-page > .fv-empty {
+  flex: 1;
+  justify-content: center;
 }
 
 .legend {

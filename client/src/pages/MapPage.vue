@@ -12,6 +12,15 @@
           <span class="list-title">记忆地点 ({{ locations.length }})</span>
         </div>
         <div class="location-items">
+          <EmptyState
+            v-if="!locations.length"
+            compact
+            icon="location-o"
+            title="还没有记忆地点"
+            desc="说一句「我爸 1980 年在武汉大学读书」，地图会把它钉在家人的足迹上。"
+            action-text="添加第一个地点"
+            @action="showAddLocation = true"
+          />
           <div
             v-for="loc in locations"
             :key="loc.id"
@@ -114,6 +123,7 @@ import { showToast } from 'vant'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
+import EmptyState from '@/components/EmptyState.vue'
 import { cloudChat, getCloudSession } from '@/services/cloud'
 
 const mapContainer = ref(null)
@@ -125,52 +135,11 @@ const aiBusy = ref(false)
 // 识别出的建议坐标（可能被用户后续手动修正）
 const aiCoords = ref(null)
 
-// 默认地点数据
-const defaultLocations = [
-  {
-    id: 1,
-    name: '爷爷的老家',
-    year: 1930,
-    description: '爷爷出生和长大的地方',
-    latitude: 30.5928,
-    longitude: 114.3055,
-  },
-  {
-    id: 2,
-    name: '奶奶的娘家',
-    year: 1935,
-    description: '奶奶小时候住的地方',
-    latitude: 30.6598,
-    longitude: 104.0633,
-  },
-  {
-    id: 3,
-    name: '爸妈结婚的地方',
-    year: 1975,
-    description: '武汉市江汉区',
-    latitude: 30.5833,
-    longitude: 114.2667,
-  },
-  {
-    id: 4,
-    name: '爸爸上大学',
-    year: 1996,
-    description: '武汉大学',
-    latitude: 30.5433,
-    longitude: 114.3567,
-  },
-  {
-    id: 5,
-    name: '我的出生地',
-    year: 2005,
-    description: '武汉市协和医院',
-    latitude: 30.5800,
-    longitude: 114.2800,
-  }
-]
+// 地点数据（不预置示例，全部来自用户录入）
 
-// 从 localStorage 加载地点
-const locations = ref(storage.get(STORAGE_KEYS.MEMORY_LOCATIONS, null) || defaultLocations)
+// 从 localStorage 加载地点，没有就是空的
+const savedLocations = storage.get(STORAGE_KEYS.MEMORY_LOCATIONS, null)
+const locations = ref(Array.isArray(savedLocations) ? savedLocations : [])
 
 // 保存地点到 localStorage
 const saveLocations = () => {
@@ -435,6 +404,8 @@ onUnmounted(() => {
 .location-items {
   overflow-y: auto;
   flex: 1;
+  /* 底部导航是悬浮的，留出空间避免空状态按钮被遮住 */
+  padding-bottom: 64px;
 }
 
 .location-item {

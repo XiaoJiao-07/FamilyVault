@@ -5,10 +5,24 @@
     <!-- 传家宝列表 -->
     <div class="heirloom-list">
       <van-tabs v-model:active="activeTab" sticky>
-        <van-tab title="全部" name="all">
+        <van-tab
+          v-for="cat in categories"
+          :key="cat.key"
+          :title="cat.label"
+          :name="cat.key"
+        >
           <div class="tab-content">
+            <EmptyState
+              v-if="!itemsOf(cat.key).length"
+              compact
+              :icon="cat.icon"
+              :title="cat.emptyTitle"
+              :desc="cat.emptyDesc"
+              action-text="记录第一件"
+              @action="openAdd(cat.key)"
+            />
             <div
-              v-for="item in heirlooms"
+              v-for="item in itemsOf(cat.key)"
               :key="item.id"
               class="heirloom-card"
               @click="showDetail(item)"
@@ -18,70 +32,7 @@
               </div>
               <div class="card-body">
                 <div class="card-title">{{ item.title }}</div>
-                <div class="card-content">{{ item.content.substring(0, 80) }}...</div>
-                <div class="card-footer">
-                  <span class="author">{{ item.author_name || '匿名' }}</span>
-                  <span class="date">{{ formatDate(item.created_at) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </van-tab>
-
-        <van-tab title="菜谱" name="recipe">
-          <div class="tab-content">
-            <div
-              v-for="item in filteredHeirlooms('recipe')"
-              :key="item.id"
-              class="heirloom-card"
-              @click="showDetail(item)"
-            >
-              <div class="card-category recipe">菜谱</div>
-              <div class="card-body">
-                <div class="card-title">{{ item.title }}</div>
-                <div class="card-content">{{ item.content.substring(0, 80) }}...</div>
-                <div class="card-footer">
-                  <span class="author">{{ item.author_name || '匿名' }}</span>
-                  <span class="date">{{ formatDate(item.created_at) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </van-tab>
-
-        <van-tab title="手艺" name="craft">
-          <div class="tab-content">
-            <div
-              v-for="item in filteredHeirlooms('craft')"
-              :key="item.id"
-              class="heirloom-card"
-              @click="showDetail(item)"
-            >
-              <div class="card-category craft">手艺</div>
-              <div class="card-body">
-                <div class="card-title">{{ item.title }}</div>
-                <div class="card-content">{{ item.content.substring(0, 80) }}...</div>
-                <div class="card-footer">
-                  <span class="author">{{ item.author_name || '匿名' }}</span>
-                  <span class="date">{{ formatDate(item.created_at) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </van-tab>
-
-        <van-tab title="家训" name="motto">
-          <div class="tab-content">
-            <div
-              v-for="item in filteredHeirlooms('motto')"
-              :key="item.id"
-              class="heirloom-card"
-              @click="showDetail(item)"
-            >
-              <div class="card-category motto">家训</div>
-              <div class="card-body">
-                <div class="card-title">{{ item.title }}</div>
-                <div class="card-content">{{ item.content.substring(0, 80) }}...</div>
+                <div class="card-content">{{ preview(item.content) }}</div>
                 <div class="card-footer">
                   <span class="author">{{ item.author_name || '匿名' }}</span>
                   <span class="date">{{ formatDate(item.created_at) }}</span>
@@ -94,7 +45,7 @@
     </div>
 
     <!-- 添加按钮 -->
-    <div class="fab" @click="showAdd = true">
+    <div class="fab" @click="openAdd('')">
       <van-icon name="plus" size="24" color="white" />
     </div>
 
@@ -121,6 +72,9 @@
         </div>
 
         <div class="detail-footer">
+          <van-button class="detail-delete" plain round @click="onDelete">
+            删除这条
+          </van-button>
           <van-button type="primary" block round @click="showDetailPopup = false">
             关闭
           </van-button>
@@ -148,11 +102,14 @@
               required
             />
             <van-field
-              v-model="newItem.category"
+              :model-value="categoryLabel"
               name="category"
               label="类型"
-              placeholder="recipe/craft/motto"
+              placeholder="选择类型：菜谱 / 手艺 / 家训"
+              readonly
+              is-link
               required
+              @click="showCategoryPicker = true"
             />
             <van-field
               v-model="newItem.content"
@@ -179,17 +136,67 @@
         </van-form>
       </div>
     </van-popup>
+
+    <!-- 类型选择 -->
+    <van-popup v-model:show="showCategoryPicker" position="bottom" round>
+      <van-picker
+        :columns="categoryColumns"
+        title="选择类型"
+        @confirm="onPickCategory"
+        @cancel="showCategoryPicker = false"
+      />
+    </van-popup>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { showToast } from 'vant'
+import { ref, computed } from 'vue'
+import { showToast, showConfirmDialog } from 'vant'
+import storage, { STORAGE_KEYS } from '@/utils/storage'
+import EmptyState from '@/components/EmptyState.vue'
 
 const activeTab = ref('all')
 const showDetailPopup = ref(false)
 const showAdd = ref(false)
+const showCategoryPicker = ref(false)
 const selectedItem = ref(null)
+
+const categories = [
+  {
+    key: 'all',
+    label: '全部',
+    icon: 'gift-card-o',
+    emptyTitle: '还没有传家宝',
+    emptyDesc: '一道家常菜、一门老手艺、一句家训，都是能传下去的东西。先记下最想留住的那一件。'
+  },
+  {
+    key: 'recipe',
+    label: '菜谱',
+    icon: 'shop-o',
+    emptyTitle: '还没有记下菜谱',
+    emptyDesc: '那道只有家里人才做得出的味道，趁还记得，把用料和火候写下来。'
+  },
+  {
+    key: 'craft',
+    label: '手艺',
+    icon: 'setting-o',
+    emptyTitle: '还没有记下手艺',
+    emptyDesc: '木工、缝纫、修表、种花——手上会的东西，写下来才不会断。'
+  },
+  {
+    key: 'motto',
+    label: '家训',
+    icon: 'records-o',
+    emptyTitle: '还没有记下家训',
+    emptyDesc: '长辈常挂在嘴边的那句话，往往就是这家人行事的分寸。'
+  }
+]
+
+const categoryColumns = [
+  { text: '菜谱', value: 'recipe' },
+  { text: '手艺', value: 'craft' },
+  { text: '家训', value: 'motto' }
+]
 
 const newItem = ref({
   title: '',
@@ -198,43 +205,25 @@ const newItem = ref({
   author_name: ''
 })
 
-const heirlooms = ref([
-  {
-    id: 1,
-    title: '奶奶的红烧肉',
-    category: 'recipe',
-    content: '材料：五花肉 500g、冰糖 30g、生抽 2 勺、老抽 1 勺、料酒 2 勺、葱姜适量。\n\n做法：\n1. 五花肉切块，冷水下锅焯水\n2. 锅中放少许油，加冰糖炒糖色\n3. 下肉块翻炒上色\n4. 加生抽、老抽、料酒、葱姜\n5. 加水没过肉，大火烧开转小火炖 1 小时\n6. 大火收汁即可\n\n小贴士：冰糖比白糖上色更好，炖的时候不要频繁开盖。',
-    author_name: '奶奶',
-    created_at: '2024-01-15'
-  },
-  {
-    id: 2,
-    title: '木工手艺 - 榫卯结构',
-    category: 'craft',
-    content: '卯是中国传统木工的核心技术，不用钉子和胶水，仅靠木材之间的凹凸结合就能牢固连接。\n\n常见榫卯类型：\n1. 燕尾榫 - 用于抽屉、箱子\n2. 直榫 - 最基本的连接方式\n3. 粽角榫 - 用于家具角部\n4. 抱肩榫 - 用于桌椅腿\n\n学习要点：\n- 木材要干燥处理\n- 尺寸要精确到毫米\n- 需要多年练习才能掌握',
-    author_name: '爷爷',
-    created_at: '2024-02-20'
-  },
-  {
-    id: 3,
-    title: '家训：勤俭持家',
-    category: 'motto',
-    content: '一粥一饭，当思来处不易；半丝半缕，恒念物力维艰。\n\n做人要诚实，做事要认真。\n宁可吃亏，不可占人便宜。\n\n家族传承五代，这是我们家最重要的精神财富。',
-    author_name: '曾祖父',
-    created_at: '2024-03-10'
-  },
-  {
-    id: 4,
-    title: '妈妈的腌菜秘方',
-    category: 'recipe',
-    content: '材料：大白菜 5 斤、盐 150g、花椒 20g、干辣椒 10 个\n\n做法：\n1. 白菜洗净晾干水分\n2. 切成适当大小\n3. 加盐揉搓出水\n4. 加入花椒和干辣椒\n5. 装入坛中压实\n6. 密封腌制 15 天\n\n这是妈妈从外婆那里学来的，味道特别好。',
-    author_name: '妈妈',
-    created_at: '2024-04-05'
-  }
-])
+// 全部数据来自本地/云端，不预置示例
+const heirlooms = ref(
+  Array.isArray(storage.get(STORAGE_KEYS.HEIRLOOMS, null))
+    ? storage.get(STORAGE_KEYS.HEIRLOOMS, null)
+    : []
+)
 
-const filteredHeirlooms = (category) => {
-  return heirlooms.value.filter(item => item.category === category)
+const saveHeirlooms = () => {
+  storage.set(STORAGE_KEYS.HEIRLOOMS, heirlooms.value)
+}
+
+const itemsOf = (category) =>
+  category === 'all'
+    ? heirlooms.value
+    : heirlooms.value.filter(item => item.category === category)
+
+const preview = (content) => {
+  const text = String(content || '').replace(/\s+/g, ' ').trim()
+  return text.length > 80 ? `${text.slice(0, 80)}…` : text
 }
 
 const getCategoryName = (category) => {
@@ -252,21 +241,67 @@ const showDetail = (item) => {
   showDetailPopup.value = true
 }
 
+const openAdd = (category = '') => {
+  newItem.value = {
+    title: '',
+    category: category === 'all' ? '' : category,
+    content: '',
+    author_name: ''
+  }
+  showAdd.value = true
+}
+
+const categoryLabel = computed(() => {
+  const hit = categoryColumns.find(c => c.value === newItem.value.category)
+  return hit ? hit.text : ''
+})
+
+const onPickCategory = ({ selectedOptions }) => {
+  newItem.value.category = selectedOptions[0]?.value || ''
+  showCategoryPicker.value = false
+}
+
 const onAdd = () => {
-  if (!newItem.value.title || !newItem.value.content) {
-    showToast('请填写完整信息')
+  if (!newItem.value.title.trim() || !newItem.value.content.trim()) {
+    showToast('标题和内容都要写，哪怕只有一句话')
+    return
+  }
+  if (!newItem.value.category) {
+    showToast('先选一个类型：菜谱 / 手艺 / 家训')
     return
   }
 
   heirlooms.value.unshift({
     id: Date.now(),
-    ...newItem.value,
+    title: newItem.value.title.trim(),
+    category: newItem.value.category,
+    content: newItem.value.content.trim(),
+    author_name: newItem.value.author_name.trim(),
     created_at: new Date().toISOString().split('T')[0]
   })
+  saveHeirlooms()
 
-  showToast('添加成功')
+  showToast('已记下')
   showAdd.value = false
   newItem.value = { title: '', category: '', content: '', author_name: '' }
+}
+
+const onDelete = () => {
+  const item = selectedItem.value
+  if (!item) return
+  showConfirmDialog({
+    title: '删除传家宝',
+    message: `确定删除「${item.title}」吗？删除后无法恢复。`,
+    confirmButtonText: '删除',
+    confirmButtonColor: '#B4442E'
+  })
+    .then(() => {
+      heirlooms.value = heirlooms.value.filter(h => h.id !== item.id)
+      saveHeirlooms()
+      showDetailPopup.value = false
+      showToast('已删除')
+    })
+    .catch(() => {})
 }
 </script>
 
@@ -428,6 +463,13 @@ const onAdd = () => {
 
 .detail-footer {
   padding: 0 16px;
+}
+
+.detail-delete {
+  width: 100%;
+  margin-bottom: 10px;
+  color: #b4442e;
+  border-color: rgba(180, 68, 46, 0.35);
 }
 
 .add-form {

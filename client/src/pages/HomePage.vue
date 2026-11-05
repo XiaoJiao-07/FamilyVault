@@ -187,7 +187,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
@@ -305,9 +305,25 @@ const formatDuration = (seconds) => {
   return `${mins}分钟`
 }
 
-const dailyQuote = ref({
-  text: '一粥一饭，当思来处不易；半丝半缕，恒念物力维艰。',
-  author: '曾祖父家训'
+// 每日一言：优先用家族里真实记下的家训，没有就显示一句引导语，不假托长辈
+const dailyQuote = computed(() => {
+  const heirlooms = storage.get(STORAGE_KEYS.HEIRLOOMS, []) || []
+  const mottos = heirlooms.filter(h => h.category === 'motto' && h.content)
+  if (mottos.length) {
+    const pick = mottos[new Date().getDate() % mottos.length]
+    const firstLine = String(pick.content)
+      .split('\n')
+      .map(s => s.trim())
+      .find(Boolean) || ''
+    return {
+      text: firstLine.slice(0, 60),
+      author: pick.author_name ? `${pick.author_name}的家训` : '家里记下的家训'
+    }
+  }
+  return {
+    text: '家里的故事，是从你记下第一句话开始的。',
+    author: '写在开头'
+  }
 })
 </script>
 

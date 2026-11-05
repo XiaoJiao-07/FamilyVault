@@ -10,6 +10,22 @@ import 'vant/lib/index.css'
 import './styles/theme.css'
 
 import { handleCloudCallback, getCloudSession } from './services/cloud'
+import { startDemoCleanup } from './utils/cleanupDemo'
+import { showToast } from 'vant'
+
+// 清除早期版本内置的示例数据（按完整指纹精确匹配，用户动过的记录一律保留）。
+// 必须在 mount 之前跑，页面才不会先渲染一遍假数据再闪一下。
+let appMounted = false
+const pendingNotices = []
+const notifyCleanup = (list) => {
+  const message = `已清除 ${list.join('、')}，家史里只剩你录入的内容`
+  if (appMounted) {
+    showToast({ message, position: 'bottom', duration: 3600 })
+  } else {
+    pendingNotices.push(message)
+  }
+}
+startDemoCleanup(notifyCleanup)
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -40,6 +56,10 @@ async function bootstrap() {
     await getCloudSession()
   } catch { /* 未登录是正常状态 */ }
   app.mount('#app')
+  appMounted = true
+  pendingNotices.forEach(message =>
+    showToast({ message, position: 'bottom', duration: 3600 })
+  )
 
   // 云账号授权回来直接回「关于」页，用户能立刻看到连接结果
   if (backToAbout) {
