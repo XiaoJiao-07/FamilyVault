@@ -11,7 +11,11 @@ import './styles/theme.css'
 
 import { handleCloudCallback, getCloudSession } from './services/cloud'
 import { startDemoCleanup } from './utils/cleanupDemo'
+import { rememberSharecode } from './utils/sharecode'
 import { showToast } from 'vant'
+
+// 记住分享码：路由跳转会丢掉 query，语音识别拼外链时要用
+rememberSharecode()
 
 // 清除早期版本内置的示例数据（按完整指纹精确匹配，用户动过的记录一律保留）。
 // 必须在 mount 之前跑，页面才不会先渲染一遍假数据再闪一下。

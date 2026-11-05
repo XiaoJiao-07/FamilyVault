@@ -1,5 +1,6 @@
 // API 工具 - 认证与数据同步（对接 /api/auth 与 /api/data）
 import axios from 'axios'
+import { getSharecode } from './sharecode'
 
 const TOKEN_KEY = 'familyvault_auth_token'
 const USER_KEY = 'familyvault_current_user'
@@ -246,8 +247,11 @@ export const mediaAPI = {
       const form = new FormData()
       form.append('audio', file)
       form.append('duration', String(duration))
+      // 服务端要用分享码拼出外部可访问的音频链接，交给语音识别
+      form.append('sharecode', getSharecode())
       const data = await request.post('/upload/audio', form, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000
       })
       return { success: true, data: data.data }
     } catch (error) {

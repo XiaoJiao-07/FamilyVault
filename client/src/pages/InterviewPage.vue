@@ -194,7 +194,7 @@
         <!-- 转文字中提示 -->
         <div v-if="isTranscribing" class="transcribing-indicator">
           <van-loading type="spinner" size="20" color="var(--fv-primary)" />
-          <span>正在转文字...</span>
+          <span>正在把录音转成文字…</span>
         </div>
       </div>
 
@@ -230,7 +230,7 @@
           @click="startRecording"
         >
           <van-icon name="audio" size="18" style="margin-right: 6px" />
-          {{ speechSupported ? '点击录音' : '录音（保存为语音）' }}
+          点击录音
         </van-button>
 
         <van-button
@@ -350,10 +350,6 @@ const interviewees = ref(storage.get(STORAGE_KEYS.INTERVIEWEES, []))
 const aiMode = ref('demo')
 const aiLabel = ref('')
 const aiThinking = ref(false)
-// 浏览器是否支持原生语音转文字（安卓 WebView / 微信内置浏览器通常不支持）
-const speechSupported = ref(Boolean(speechRecognizer.recognition))
-// 不支持转写时，改为「只录音、存成语音留言」
-const audioRecordMode = ref(false)
 
 const applyAiMode = (demo) => {
   aiMode.value = demo ? 'demo' : 'live'
@@ -707,187 +703,148 @@ const startInterview = async () => {
 }
 
 // 开始录音
+// 统一路径：**先确保真的在录音**（MediaRecorder，任何浏览器都有），
+// 浏览器原生语音识别只作为「边说边出字」的实时预览——安卓国内大多调不通，
+// 不通也不影响结果，停止后交给服务端识别。
 const startRecording = async () => {
-  // 不支持语音转文字：退回纯录音，照样能留下长辈的声音
-  if (!speechRecognizer.recognition) {
-    await startAudioOnlyRecording()
-    return
-  }
+  if (isRecording.value) return
 
+  transcribedText.value = ''
   isRecording.value = true
   recordingDuration.value = 0
-  transcribedText.value = ''
 
-  // 设置语音识别回调
-  speechRecognizer.onStart = () => {
-    console.log('语音识别已启动')
-    showToast('开始录音，请说话...')
-  }
-
-  speechRecognizer.onResult = (result) => {
-    // 更新实时转写文字（显示完整内容：最终+中间）
-    transcribedText.value = result.full || result.final || result.interim
-    console.log('转写结果:', result)
-  }
-
-  speechRecognizer.onError = (error, message) => {
-    console.error('语音识别错误:', error, message)
-    let errorMsg = '语音识别失败'
-    if (error === 'not-allowed') {
-      errorMsg = '请允许麦克风权限'
-    } else if (error === 'no-speech') {
-      errorMsg = '未检测到语音，请重试'
-    } else if (error === 'network') {
-      errorMsg = '网络错误，请检查网络'
-    } else if (error === 'aborted') {
-      errorMsg = '录音已取消'
-    } else if (error === 'service-not-allowed') {
-      errorMsg = '浏览器不支持，请用手动输入或换 Chrome'
-    }
-    showToast(errorMsg)
-    isRecording.value = false
-  }
-
-  speechRecognizer.onEnd = (finalTranscript) => {
-    console.log('语音识别结束，最终文本:', finalTranscript)
-    isRecording.value = false
-    // 确保最终文本被保存
-    if (finalTranscript && !transcribedText.value) {
-      transcribedText.value = finalTranscript
-    }
-  }
-
-  // 开始录音计时
   durationTimer = setInterval(() => {
     recordingDuration.value++
+    // 单次识别上限 5 分钟，提前提醒分段
+    if (recordingDuration.value === 240) {
+      showToast('已录 4 分钟，建议先停下，分几段讲更好整理')
+    }
   }, 1000)
 
-  // 启动语音识别
-  try {
-    speechRecognizer.start()
-  } catch (err) {
-    console.error('启动语音识别失败:', err)
-    showToast('启动语音识别失败：' + err.message)
-    isRecording.value = false
-  }
-}
-
-// 不支持语音转写的浏览器：用 MediaRecorder 纯录音，保存成语音留言
-const startAudioOnlyRecording = async () => {
   try {
     await audioRecorder.start()
-    audioRecordMode.value = true
-    isRecording.value = true
-    recordingDuration.value = 0
-    durationTimer = setInterval(() => {
-      recordingDuration.value++
-    }, 1000)
-    showToast('正在录音，说完点「停止录音」')
   } catch (err) {
+    stopDurationTimer()
     isRecording.value = false
     const msg = err?.name === 'NotAllowedError'
       ? '麦克风权限被拒绝，请在浏览器设置里允许后再试'
       : (err?.message || '录音启动失败')
     showToast(msg)
+    return
+  }
+
+  // 实时预览（可选能力，失败静默）
+  if (speechRecognizer.recognition) {
+    speechRecognizer.onResult = (result) => {
+      transcribedText.value = result.full || result.final || result.interim || ''
+    }
+    speechRecognizer.onError = (error) => {
+      console.warn('[speech] 原生识别不可用，改用服务端识别:', error)
+    }
+    speechRecognizer.onStart = () => {}
+    speechRecognizer.onEnd = () => {}
+    try {
+      speechRecognizer.start()
+    } catch {
+      /* 实时预览失败不影响录音 */
+    }
   }
 }
 
-const stopAudioOnlyRecording = async () => {
+const stopDurationTimer = () => {
+  if (durationTimer) {
+    clearInterval(durationTimer)
+    durationTimer = null
+  }
+}
+
+// 停止录音：先停原生识别（拿实时文本作参考），再上传录音由服务端转写
+const stopRecording = async () => {
+  if (!isRecording.value) return
+
+  isRecording.value = false
+  isTranscribing.value = true
+  stopDurationTimer()
+
+  let liveText = ''
+  try {
+    const finalText = speechRecognizer.stop()
+    liveText = String(finalText || transcribedText.value || '').trim()
+  } catch {
+    liveText = String(transcribedText.value || '').trim()
+  }
+
   let record = null
   try {
     record = await audioRecorder.stop()
-  } catch {
-    record = null
+  } catch (err) {
+    console.warn('[record] 停止录音失败:', err)
   }
+
+  // 录得太短 / 没录到：有实时文本就先用上
   if (!record || !record.blob || record.blob.size < 200) {
-    audioRecordMode.value = false
     isTranscribing.value = false
-    showToast('没录到声音，请再试一次')
+    recordingDuration.value = 0
+    if (liveText) {
+      messages.value.push({ role: 'user', text: liveText, time: getCurrentTime() })
+      scrollToBottom()
+      await requestAiTurn(liveText)
+    } else {
+      showToast('没录到声音，请再试一次')
+    }
     return
   }
 
   const duration = record.duration || recordingDuration.value
   const ext = audioRecorder.getFileExtension()
   const file = audioRecorder.blobToFile(record.blob, `interview-${Date.now()}.${ext}`)
+
+  // 原声本身就是重要资料，先落库；转写在服务端完成
   const res = await mediaAPI.uploadAudio(file, duration)
-  audioRecordMode.value = false
   isTranscribing.value = false
+  recordingDuration.value = 0
 
   if (!res.success) {
+    if (liveText) {
+      messages.value.push({ role: 'user', text: liveText, time: getCurrentTime() })
+      scrollToBottom()
+      await requestAiTurn(liveText)
+      return
+    }
     showToast(res.message || '录音保存失败')
     return
   }
 
-  const { filename, url, transcription, demo } = res.data || {}
+  const { filename, url, transcription, skipped } = res.data || {}
+  const text = String(transcription || '').trim() || liveText
 
-  // 服务端配置了语音识别：直接把转写结果当作回答
-  if (transcription && !demo) {
-    messages.value.push({ role: 'user', text: transcription, time: getCurrentTime() })
+  // 识别出文字：文字 + 原声都留下
+  if (text) {
+    messages.value.push({
+      role: 'user',
+      text,
+      audio: filename || '',
+      audioUrl: url || '',
+      time: getCurrentTime()
+    })
     scrollToBottom()
-    await requestAiTurn(transcription)
-    recordingDuration.value = 0
+    await requestAiTurn(text)
     return
   }
 
-  // 没转写就存成可回放的语音留言，然后继续问下一个问题
-  const playUrl = url || (filename ? await resolveMediaUrl(filename) : null)
+  // 没识别出文字：保留语音留言，继续下一题
+  if (skipped === 'too_long') {
+    showToast('这段较长，原声已保存；建议每段控制在 5 分钟内')
+  }
   messages.value.push({
     role: 'user',
     text: `语音留言 ${formatDuration(duration)}`,
     audio: filename || '',
-    audioUrl: playUrl || '',
+    audioUrl: url || '',
     time: getCurrentTime()
   })
-  audioRecordMode.value = false
-  isTranscribing.value = false
   scrollToBottom()
   pushNextQuestion()
-  recordingDuration.value = 0
-}
-
-// 停止录音
-const stopRecording = async () => {
-  if (!isRecording.value) return
-
-  isRecording.value = false
-  isTranscribing.value = true
-
-  if (durationTimer) {
-    clearInterval(durationTimer)
-    durationTimer = null
-  }
-
-  if (audioRecordMode.value) {
-    await stopAudioOnlyRecording()
-    return
-  }
-
-  // 停止语音识别并获取最终文本
-  const finalText = speechRecognizer.stop()
-
-  // 使用转写的文字
-  setTimeout(async () => {
-    // 优先使用最终文本，其次使用实时转写文本
-    const userText = finalText || transcribedText.value || ''
-
-    if (!userText.trim()) {
-      showToast('未识别到语音内容，请重试')
-      isTranscribing.value = false
-      return
-    }
-
-    messages.value.push({
-      role: 'user',
-      text: userText,
-      time: getCurrentTime()
-    })
-
-    isTranscribing.value = false
-
-    // AI 回复（真实接口，失败时本地兜底）
-    await requestAiTurn(userText)
-    recordingDuration.value = 0
-  }, 1500)
 }
 
 // 发送手动输入的文字

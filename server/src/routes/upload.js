@@ -30,6 +30,11 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 const SIGN_TTL = 60 * 60 * 1000 // 链接有效期 1 小时
 const MEDIA_SECRET = process.env.JWT_SECRET || 'familyvault-dev-secret-change-me'
 
+// 语音识别单次上限：qwen3-asr-flash 为 5 分钟 / 10MB，超出的整段会失败，
+// 这里留一点余量提前判定，避免白等一次长请求
+const ASR_MAX_SECONDS = 285
+const ASR_MAX_BYTES = 9.5 * 1024 * 1024
+
 const ALLOWED = {
   jpeg: { ext: '.jpg', mime: 'image/jpeg', kind: 'image' },
   jpg: { ext: '.jpg', mime: 'image/jpeg', kind: 'image' },
@@ -91,6 +96,49 @@ export function signMediaPath(filename, ttl = SIGN_TTL) {
     .update(`${filename}:${expires}`)
     .digest('base64url')
   return `/api/upload/${encodeURIComponent(filename)}?e=${expires}&s=${sig}`
+}
+
+/**
+ * 拼出媒体文件的公网绝对地址（供第三方语音识别服务下载）
+ * 托管网关对 /api 有 sharecode 保护，链接上必须带上它才能被外部拉取。
+ */
+function publicMediaUrl(req, signedPath) {
+  const base = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '') || origin(req)
+  if (!base) return null
+
+  const sharecode = resolveSharecode(req)
+  const tail = sharecode ? `&sharecode=${encodeURIComponent(sharecode)}` : ''
+  return `${base}${signedPath}${tail}`
+}
+
+function origin(req) {
+  const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https')
+    .split(',')[0]
+    .trim()
+  const host = String(req.headers['x-forwarded-host'] || req.get('host') || '')
+    .split(',')[0]
+    .trim()
+  if (!host) return null
+  return `${proto}://${host}`
+}
+
+function resolveSharecode(req) {
+  const candidates = [
+    req.body?.sharecode,
+    req.query?.sharecode,
+    process.env.SHARE_CODE,
+    parseSharecode(req.headers.referer)
+  ]
+  return candidates.map(v => (typeof v === 'string' ? v.trim() : '')).find(Boolean) || ''
+}
+
+function parseSharecode(referer) {
+  if (!referer) return ''
+  try {
+    return new URL(referer).searchParams.get('sharecode') || ''
+  } catch {
+    return ''
+  }
 }
 
 function verifySignature(filename, expires, sig) {
@@ -185,19 +233,38 @@ router.post('/audio', authRequired, withFamily, upload.single('audio'), async (r
     }
 
     const media = saveMedia(req, req.file)
+    const duration = Number(req.body.duration) || 0
     let transcription = ''
     let demo = false
-    try {
-      const result = await transcribeAudio(req.file.path)
-      transcription = typeof result === 'string' ? result : result.text || ''
-      demo = typeof result === 'object' && Boolean(result.demo)
-    } catch (err) {
-      console.error('transcribe failed:', err.message)
+    let asr = null
+    let skipped = null
+
+    // 太短的录音（<0.8s）多半是误触；过长（>5min / >10MB）超出识别上限，都跳过
+    const tooShort = duration > 0 && duration < 0.8
+    const tooLong = duration > ASR_MAX_SECONDS || req.file.size > ASR_MAX_BYTES
+    const publicUrl = tooShort || tooLong ? null : publicMediaUrl(req, media.url)
+
+    if (tooLong) skipped = 'too_long'
+
+    if (publicUrl) {
+      try {
+        const result = await transcribeAudio({ audioPath: req.file.path, publicUrl })
+        transcription = result.text || ''
+        demo = Boolean(result.demo)
+        asr = result.provider || null
+        if (result.unavailable) {
+          asr = null
+          skipped = 'unavailable'
+        }
+      } catch (err) {
+        console.error('transcribe failed:', err.message)
+        skipped = 'failed'
+      }
     }
 
     return res.json({
       success: true,
-      data: { ...media, transcription, demo, duration: Number(req.body.duration) || 0 }
+      data: { ...media, transcription, demo, asr, skipped, duration }
     })
   } catch (error) {
     console.error('upload audio failed:', error)
