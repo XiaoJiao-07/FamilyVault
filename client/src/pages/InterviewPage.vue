@@ -129,7 +129,7 @@
         <div class="info-content">
           <div class="name">{{ selectedInterviewee.name }}</div>
           <div class="meta">
-            {{ selectedInterviewee.age }}岁 · {{ selectedInterviewee.hometown }}
+            {{ intervieweeMeta }}
             <span v-if="recordingDuration" class="duration">
               {{ formatDuration(recordingDuration) }}
             </span>
@@ -145,7 +145,7 @@
           :key="index"
           :class="['message-item', message.role, { 'is-question': message.kind === 'question' }]"
         >
-          <div v-if="message.role === 'ai' && message.kind !== 'question'" class="message-avatar ai-avatar">AI</div>
+          <div v-if="message.role === 'ai' && message.kind !== 'question'" class="message-avatar ai-avatar">采</div>
           <div class="message-content">
             <div v-if="message.kind === 'question'" class="question-card">
               <div class="question-label">
@@ -330,7 +330,7 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import speechRecognizer from '@/utils/speech'
 import audioRecorder from '@/utils/recorder'
@@ -359,6 +359,14 @@ const applyAiMode = (demo) => {
   aiMode.value = demo ? 'demo' : 'live'
 }
 const selectedInterviewee = ref(null)
+
+// 顶部信息行：空字段不留下多余的“·”
+const intervieweeMeta = computed(() => {
+  const p = selectedInterviewee.value || {}
+  return [p.age ? `${p.age}岁` : '', p.hometown || '', p.relationship || '']
+    .filter(Boolean)
+    .join(' · ')
+})
 const sessionId = ref(null)
 const messages = ref([])
 const isRecording = ref(false)
@@ -541,14 +549,15 @@ const buildCloudSystem = (interviewee = {}) => {
   if (interviewee.relationship) facts.push(`与记录者的关系：${interviewee.relationship}`)
 
   return [
-    '你是 FamilyVault 的 AI 采访助手，正在帮一个家庭留存长辈的口述历史。',
+    '你是家里晚辈请来的“采访助手”，正在帮一个家庭把长辈讲的事原样留下来。',
     `采访对象：${facts.length ? facts.join('；') : '一位家中长辈'}`,
     '要求：',
-    '1. 先自然地回应对方刚说的内容（一句，具体，不要空洞的夸奖）',
-    '2. 再提出下一个问题，只问一个问题，具体、有画面感（食物、声音、气味、地点、人名）',
-    '3. 语气像晚辈陪长辈聊天，不说"您能详细说说吗"这种套话',
-    '4. 使用简体中文，总字数不超过 80 字，分成两段，不要加"AI："之类的前缀',
-    '5. 不要编造采访对象的经历，只基于他/她说过的话追问'
+    '1. 开头先轻轻接一句对方刚说的具体内容（不超过 15 字），不要夸奖、不要感叹，不要重复对方原话',
+    '2. 然后只问一个问题，问得具体、有画面感（哪一年、哪道菜、谁在场、什么声音），不要问笼统的大问题',
+    '3. 语气像晚辈陪长辈唠家常，用“您”，不用书面语，不说“您能详细说说吗”“这真是一段宝贵的回忆”这类套话',
+    '4. 简体中文，总共不超过 60 字，只用一个问号，不要分段编号，不要加“AI：”之类前缀',
+    '5. 不要编造对方的经历，不要替对方回答，不要总结人生道理',
+    '6. 不要再问之前已经聊过的话题（下面历史里出现过的内容就跳过）'
   ].join('\n')
 }
 
