@@ -271,8 +271,8 @@
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router'
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import * as d3 from 'd3'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
@@ -280,6 +280,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import { resolveMediaUrl, uploadMedia } from '@/utils/media'
 
 const router = useRouter()
+const route = useRoute()
 // 统一回首页：不逐页后退，回到首页后安卓返回键可直接退出
 const goHome = () => router.replace('/')
 
@@ -289,7 +290,8 @@ const showMemberDetail = ref(false)
 const showAddMember = ref(false)
 const selectedMember = ref(null)
 const memberRelations = ref([])
-const viewMode = ref('graph')
+// 首页点「家族成员」会带 ?view=tree 进来，直接落到家谱树
+const viewMode = ref(route.query.view === 'tree' ? 'tree' : 'graph')
 
 const newMember = ref({
   name: '',
@@ -394,8 +396,11 @@ const renderGraph = () => {
     .force('center', d3.forceCenter(width / 2, height / 2))
     .force('collision', d3.forceCollide().radius(50))
 
+  // 所有图元挂在这一层：缩放、平移只改它的 transform
+  const root = svg.append('g')
+
   // 绘制连线
-  const link = svg.append('g')
+  const link = root.append('g')
     .selectAll('line')
     .data(linkEdges)
     .enter()
@@ -405,7 +410,7 @@ const renderGraph = () => {
     .attr('stroke-opacity', 0.8)
 
   // 绘制节点组
-  const node = svg.append('g')
+  const node = root.append('g')
     .selectAll('g')
     .data(graphData.value.nodes)
     .enter()
@@ -443,7 +448,7 @@ const renderGraph = () => {
     .attr('fill', '#2B2119')
 
   // 连线标签
-  const linkLabel = svg.append('g')
+  const linkLabel = root.append('g')
     .selectAll('text')
     .data(linkEdges)
     .enter()
@@ -453,6 +458,14 @@ const renderGraph = () => {
     .attr('fill', '#8E7C69')
     .attr('text-anchor', 'middle')
     .attr('dy', -5)
+
+  // 上下左右拖动 + 双指/滚轮缩放（之前只有单点拖动节点，整张图动不了）
+  const zoom = d3.zoom()
+    .scaleExtent([0.3, 2.5])
+    .on('zoom', (event) => root.attr('transform', event.transform))
+  svg.call(zoom)
+  // 手机上单指拖动要能拖图，不能让浏览器把页面滚走
+  svg.style('touch-action', 'none').style('-webkit-tap-highlight-color', 'transparent')
 
   simulation.on('tick', () => {
     link
@@ -748,14 +761,15 @@ const renderTree = () => {
     .attr('stroke-linecap', 'round')
     .attr('opacity', 0.75)
 
-  // 缩放 + 拖拽（初始自适应：整棵树缩放到屏幕宽度内）
+  // 缩放 + 拖拽（初始自适应：尽量整棵树塞进屏幕，但别小到看不清名字；
+  // 塞不下就让人自己拖/双指缩，卡片始终看得清）
   const zoom = d3.zoom()
     .scaleExtent([0.3, 2.2])
     .on('zoom', event => g.attr('transform', event.transform))
   const minX = Math.min(...xs)
   const maxX = Math.max(...xs)
   const treeW = maxX - minX + 260
-  const initScale = Math.min(1, Math.max(0.3, (width - 24) / treeW))
+  const initScale = Math.min(1, Math.max(0.58, (width - 24) / treeW))
   svg.call(zoom)
   svg.call(
     zoom.transform,
@@ -769,6 +783,8 @@ const renderTree = () => {
 const switchView = async (mode) => {
   if (viewMode.value === mode) return
   viewMode.value = mode
+  // 把当前视图同步进 URL，下次从首页进来还是这个视图
+  router.replace({ path: '/graph', query: mode === 'tree' ? { view: 'tree' } : {} })
   await nextTick()
   if (mode === 'graph') renderGraph()
   else renderTree()
@@ -1031,8 +1047,27 @@ const confirmRemovePhoto = (ph) => {
     .catch(() => {})
 }
 
+// 首页点「家族成员」带 ?view=tree 进来；页面被 keep-alive 缓存时
+// onMounted 不会再跑，所以每次激活都按 URL 再对一次视图
+const applyRouteView = async () => {
+  const want = route.query.view === 'tree' ? 'tree' : 'graph'
+  if (viewMode.value !== want) viewMode.value = want
+  await nextTick()
+  loadGraphData()
+}
+
+let firstActivation = true
+
 onMounted(() => {
   loadGraphData()
+})
+
+onActivated(() => {
+  if (firstActivation) {
+    firstActivation = false
+    return
+  }
+  applyRouteView()
 })
 
 onUnmounted(() => {

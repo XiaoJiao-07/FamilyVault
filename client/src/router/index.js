@@ -58,6 +58,18 @@ const routes = [
     meta: { title: '家族年轮', requiresAuth: true }
   },
   {
+    path: '/stories',
+    name: 'Stories',
+    component: () => import('@/pages/StoriesPage.vue'),
+    meta: { title: '故事记录', requiresAuth: true }
+  },
+  {
+    path: '/places',
+    name: 'Places',
+    component: () => import('@/pages/PlacesPage.vue'),
+    meta: { title: '记忆地点', requiresAuth: true }
+  },
+  {
     path: '/about',
     name: 'About',
     component: () => import('@/pages/AboutPage.vue'),

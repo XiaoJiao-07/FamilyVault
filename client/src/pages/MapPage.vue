@@ -238,7 +238,7 @@
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import L from 'leaflet'
@@ -250,6 +250,7 @@ import { geoApi } from '@/services/api'
 import { wgs84ToGcj02, gcj02ToWgs84, isValidCoord } from '@/utils/coord'
 
 const router = useRouter()
+const route = useRoute()
 // 统一回首页：不逐页后退，回到首页后安卓返回键可直接退出
 const goHome = () => router.replace('/')
 
@@ -1024,11 +1025,21 @@ onMounted(async () => {
   window.addEventListener('orientationchange', onResize)
 })
 
+/** 从「记忆地点」列表点过来：/map?focus=<id> 直接飞过去并打开详情 */
+const focusFromQuery = () => {
+  const id = route.query.focus
+  if (!id) return
+  const loc = locations.value.find((l) => String(l.id) === String(id))
+  if (!loc) return
+  setTimeout(() => flyToLocation(loc), 500)
+}
+
 // keep-alive 缓存后再次进来：DOM 是重新挂回页面的，Leaflet 还记着上一次的尺寸
 onActivated(() => {
   nextTick(() => {
     clampSheet()
     resyncMapSize()
+    focusFromQuery()
   })
 })
 

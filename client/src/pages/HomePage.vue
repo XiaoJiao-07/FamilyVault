@@ -11,17 +11,17 @@
         </div>
         <p class="banner-subtitle">趁老人还能说，把家族故事永久保存</p>
         <div class="banner-stats">
-          <div class="stat-item" role="button" tabindex="0" @click="$router.push('/graph')">
+          <div class="stat-item" role="button" tabindex="0" @click="$router.push('/graph?view=tree')">
             <span class="stat-number">{{ stats.members }}</span>
             <span class="stat-label">家族成员</span>
           </div>
           <div class="stat-divider"></div>
-          <div class="stat-item" role="button" tabindex="0" @click="$router.push('/interview')">
+          <div class="stat-item" role="button" tabindex="0" @click="$router.push('/stories')">
             <span class="stat-number">{{ stats.stories }}</span>
             <span class="stat-label">故事记录</span>
           </div>
           <div class="stat-divider"></div>
-          <div class="stat-item" role="button" tabindex="0" @click="$router.push('/map')">
+          <div class="stat-item" role="button" tabindex="0" @click="$router.push('/places')">
             <span class="stat-number">{{ stats.locations }}</span>
             <span class="stat-label">记忆地点</span>
           </div>
