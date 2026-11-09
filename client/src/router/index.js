@@ -80,6 +80,12 @@ const routes = [
     name: 'Search',
     component: () => import('@/pages/SearchPage.vue'),
     meta: { title: '搜索', requiresAuth: true }
+  },
+  {
+    path: '/archive',
+    name: 'Archive',
+    component: () => import('@/pages/ArchivePage.vue'),
+    meta: { title: '家族档案', requiresAuth: true }
   }
 ]
 

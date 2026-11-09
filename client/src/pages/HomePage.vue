@@ -124,6 +124,18 @@
       </div>
     </div>
 
+    <!-- 家族档案 -->
+    <div class="section">
+      <div class="archive-entry" role="button" tabindex="0" @click="$router.push('/archive')">
+        <div class="archive-entry__mark">家史<br>馆藏</div>
+        <div class="archive-entry__main">
+          <div class="archive-entry__title">家族档案</div>
+          <div class="archive-entry__desc">把家人、口述和老地方装订成册，可打印、可发给家人</div>
+        </div>
+        <van-icon name="arrow" size="15" color="var(--fv-primary)" />
+      </div>
+    </div>
+
     <!-- 快速开始 -->
     <div class="section">
       <van-button class="start-btn" type="primary" block round @click="$router.push('/interview')">
@@ -913,6 +925,64 @@ const dailyQuote = computed(() => {
   color: var(--fv-ink-2);
   background: var(--fv-surface);
   border-color: var(--fv-border);
+}
+
+/* 家族档案入口：做成一张「册封」的小卡片，和普通功能卡区分开 */
+.archive-entry {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 16px;
+  background: var(--fv-surface-cream);
+  border: 1px solid var(--fv-border-cream);
+  border-radius: 16px;
+  box-shadow: var(--fv-shadow-sm, 0 6px 18px -14px rgba(80, 55, 30, 0.5));
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+
+.archive-entry:active {
+  transform: scale(0.985);
+  box-shadow: none;
+}
+
+.archive-entry__mark {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border: 2px solid var(--fv-primary);
+  border-radius: 4px;
+  color: var(--fv-primary);
+  font-family: var(--fv-font-serif);
+  font-size: 13px;
+  line-height: 1.1;
+  text-align: center;
+  letter-spacing: 0;
+  opacity: 0.88;
+  transform: rotate(-3deg);
+}
+
+.archive-entry__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.archive-entry__title {
+  font-family: var(--fv-font-serif);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fv-ink);
+  letter-spacing: 0.06em;
+}
+
+.archive-entry__desc {
+  margin-top: 3px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--fv-ink-3);
 }
 
 .empty-activities {
