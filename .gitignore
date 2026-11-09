@@ -62,3 +62,6 @@ client/android/signing/
 *.jks
 *.keystore
 client/android/keystore.properties
+
+# Vite 临时文件
+*.timestamp-*.mjs
