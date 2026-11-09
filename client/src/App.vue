@@ -73,11 +73,34 @@ body {
 
 .app-container {
   min-height: 100vh;
-  padding-bottom: 50px;
+  padding-bottom: 54px;
 }
 
 .app-container.no-tabbar {
   padding-bottom: 0;
+}
+
+/* 底部导航：图标放大一点，手机上一眼能认出来。
+   Vant 自己的 .van-tabbar-item__icon 会覆盖同名类名，这里用变量 + 更高权重双保险 */
+.van-tabbar {
+  --van-tabbar-height: 54px;
+  --van-tabbar-item-icon-size: 27px;
+  --van-tabbar-item-text-font-size: 12px;
+}
+
+.van-tabbar .van-tabbar-item__icon,
+.van-tabbar .van-tabbar-item__icon .van-icon {
+  font-size: 27px;
+  margin-bottom: 3px;
+}
+
+.van-tabbar .van-tabbar-item__text {
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.van-tabbar .van-tabbar-item--active .van-tabbar-item__text {
+  font-weight: 600;
 }
 
 /* 全局滚动条样式 */

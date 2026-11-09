@@ -610,6 +610,12 @@ let pickedMarker = null
 let onMapPick = null
 let addressTimer = null
 
+// 点地图空白处 / 拖动地图 = 正在用地图，抽屉自动滑下去让位
+const collapseOnMapUse = () => {
+  if (showAddLocation.value) return // 选点模式下点地图是在选位置，不能收
+  if (!isCollapsed.value) sheetHeight.value = snapPoints()[0]
+}
+
 const initMap = () => {
   if (!mapContainer.value) return
 
@@ -625,6 +631,9 @@ const initMap = () => {
     subdomains: '1234',
     attribution: '© 高德地图'
   }).addTo(map)
+
+  map.on('click', collapseOnMapUse)
+  map.on('dragstart', collapseOnMapUse)
 
   locations.value.forEach((loc) => addMarker(loc))
   drawMigrationRoute()
@@ -975,8 +984,8 @@ const onResize = () => {
 onMounted(async () => {
   await nextTick()
   initMap()
-  // 初始半开：地图和地点都能看见，往下一拉就是整张图
-  sheetHeight.value = snapPoints()[1]
+  // 默认收起：进页面就是一张完整的地图，要看地点列表点一下标题栏就行
+  sheetHeight.value = snapPoints()[0]
   window.addEventListener('resize', onResize)
   window.addEventListener('orientationchange', onResize)
 })
@@ -998,8 +1007,8 @@ onUnmounted(() => {
 <style scoped>
 .map-page {
   /* 减去底部标签栏的 50px */
-  height: calc(100vh - 50px);
-  height: calc(100dvh - 50px);
+  height: calc(100vh - 54px);
+  height: calc(100dvh - 54px);
   background: var(--fv-paper-deep);
   display: flex;
   flex-direction: column;

@@ -1004,8 +1004,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   /* 减去底部标签栏的 50px，否则录音按钮会被标签栏压住 */
-  height: calc(100vh - 50px);
-  height: calc(100dvh - 50px);
+  height: calc(100vh - 54px);
+  height: calc(100dvh - 54px);
   background: var(--fv-paper);
 }
 

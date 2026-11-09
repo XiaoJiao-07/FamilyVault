@@ -11,17 +11,17 @@
         </div>
         <p class="banner-subtitle">趁老人还能说，把家族故事永久保存</p>
         <div class="banner-stats">
-          <div class="stat-item">
+          <div class="stat-item" role="button" tabindex="0" @click="$router.push('/graph')">
             <span class="stat-number">{{ stats.members }}</span>
             <span class="stat-label">家族成员</span>
           </div>
           <div class="stat-divider"></div>
-          <div class="stat-item">
+          <div class="stat-item" role="button" tabindex="0" @click="$router.push('/interview')">
             <span class="stat-number">{{ stats.stories }}</span>
             <span class="stat-label">故事记录</span>
           </div>
           <div class="stat-divider"></div>
-          <div class="stat-item">
+          <div class="stat-item" role="button" tabindex="0" @click="$router.push('/map')">
             <span class="stat-number">{{ stats.locations }}</span>
             <span class="stat-label">记忆地点</span>
           </div>
@@ -420,6 +420,16 @@ const dailyQuote = computed(() => {
 .stat-item {
   flex: 1;
   text-align: center;
+  cursor: pointer;
+  border-radius: 10px;
+  padding: 2px 0;
+  transition: background 0.18s, transform 0.18s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.stat-item:active {
+  background: rgba(255, 246, 234, 0.16);
+  transform: scale(0.96);
 }
 
 .stat-number {
