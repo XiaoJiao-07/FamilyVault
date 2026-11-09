@@ -6,6 +6,12 @@
       <!-- 地图铺满整个区域，抽屉浮在上面 -->
       <div ref="mapContainer" class="map-canvas"></div>
 
+      <!-- 瓦片还在路上：给个提示，避免看起来像"地图只画了一半" -->
+      <div v-if="!tilesReady" class="map-loading">
+        <van-loading size="16" color="var(--fv-primary)" />
+        <span>地图加载中</span>
+      </div>
+
       <!-- 选点时提示，露出的那块地图还能点 -->
       <div v-if="showAddLocation" class="pick-tip">
         <van-icon name="aim" size="14" />
@@ -233,7 +239,7 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -609,6 +615,8 @@ let routeLine = null
 let pickedMarker = null
 let onMapPick = null
 let addressTimer = null
+// 瓦片还没铺满时给个加载提示，否则手机上看着像"地图只画了一半"
+const tilesReady = ref(false)
 
 // 点地图空白处 / 拖动地图 = 正在用地图，抽屉自动滑下去让位
 const collapseOnMapUse = () => {
@@ -627,10 +635,26 @@ const initMap = () => {
   L.control.zoom({ position: 'topright' }).addTo(map)
 
   // 高德瓦片是 GCJ-02 坐标系，应用内坐标一律按 GCJ-02 存
-  L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+  const tiles = L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
     subdomains: '1234',
-    attribution: '© 高德地图'
+    attribution: '© 高德地图',
+    // 手机上网络慢时瓦片是陆续到的，先给个占位色，别一片死白
+    keepBuffer: 4
   }).addTo(map)
+
+  // 只在"第一次铺满"时提示；后面拖动/缩放时瓦片会反复 load，
+  // 一直弹提示反而晃眼
+  tilesReady.value = false
+  let firstLoadDone = false
+  tiles.on('load', () => {
+    firstLoadDone = true
+    tilesReady.value = true
+  })
+  tiles.on('loading', () => {
+    if (!firstLoadDone) tilesReady.value = false
+  })
+  // 兜底：网络一直不通也别让"加载中"转圈转到天荒地老
+  setTimeout(() => { tilesReady.value = true }, 8000)
 
   map.on('click', collapseOnMapUse)
   map.on('dragstart', collapseOnMapUse)
@@ -638,6 +662,17 @@ const initMap = () => {
   locations.value.forEach((loc) => addMarker(loc))
   drawMigrationRoute()
   fitToLocations()
+
+  // 页面刚插入时容器高度可能还没定下来（安卓地址栏、keep-alive 恢复），
+  // Leaflet 只按自己量到的尺寸裁瓦片，不重新量就会只画一半。
+  resyncMapSize()
+}
+
+/** 等布局稳定后让 Leaflet 重新量一次容器尺寸 */
+const resyncMapSize = () => {
+  if (!map) return
+  requestAnimationFrame(() => map && map.invalidateSize())
+  setTimeout(() => map && map.invalidateSize(), 320)
 }
 
 /** 打开就有内容：有地点就框住它们，没有就给全国视野 */
@@ -980,7 +1015,6 @@ const onResize = () => {
   clampSheet()
   if (map) map.invalidateSize()
 }
-
 onMounted(async () => {
   await nextTick()
   initMap()
@@ -988,6 +1022,14 @@ onMounted(async () => {
   sheetHeight.value = snapPoints()[0]
   window.addEventListener('resize', onResize)
   window.addEventListener('orientationchange', onResize)
+})
+
+// keep-alive 缓存后再次进来：DOM 是重新挂回页面的，Leaflet 还记着上一次的尺寸
+onActivated(() => {
+  nextTick(() => {
+    clampSheet()
+    resyncMapSize()
+  })
 })
 
 onUnmounted(() => {
@@ -1032,6 +1074,25 @@ onUnmounted(() => {
 
 .map-canvas.is-picking {
   cursor: crosshair;
+}
+
+/* 瓦片加载提示：浮在地图上方，不挡点击 */
+.map-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 450;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.94);
+  box-shadow: 0 2px 12px rgba(43, 33, 25, 0.14);
+  font-size: 12px;
+  color: var(--fv-ink-3);
+  pointer-events: none;
 }
 
 /* 选点浮动提示 */

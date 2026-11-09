@@ -1,11 +1,13 @@
 <template>
   <div class="app-container" :class="{ 'no-tabbar': hideTabbar }">
+    <!-- 标签页之间直接切换，不做淡入淡出：
+         原来 out-in 模式会先让旧页淡出 250ms、再让新页淡入 250ms，
+         中间有半秒整屏空白，手机上就像点一下就白了一下。
+         页面本身用 keep-alive 缓存，切回来是瞬间的。 -->
     <router-view v-slot="{ Component, route }">
-      <transition name="fade-slide" mode="out-in">
-        <keep-alive>
-          <component :is="Component" :key="route.path" />
-        </keep-alive>
-      </transition>
+      <keep-alive>
+        <component :is="Component" :key="route.path" />
+      </keep-alive>
     </router-view>
 
     <!-- 底部导航栏：登录/欢迎等独立页面不显示 -->
@@ -118,19 +120,6 @@ body {
   background: transparent;
 }
 
-/* 页面切换动画 */
-.fade-slide-enter-active,
-.fade-slide-leave-active {
-  transition: all 0.25s ease;
-}
-
-.fade-slide-enter-from {
-  opacity: 0;
-  transform: translateX(15px);
-}
-
-.fade-slide-leave-to {
-  opacity: 0;
-  transform: translateX(-15px);
-}
+/* 页面切换动画：已取消标签页之间的淡入淡出（会造成半秒空白），
+   这里保留的类名只给个别页面自己用，不再挂在 router-view 上 */
 </style>
