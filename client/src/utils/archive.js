@@ -93,6 +93,10 @@ export function archiveStats(data = {}) {
     const y = validYear(l.year)
     if (y) years.push(y)
   })
+  sessions.forEach((s) => {
+    const y = validYear(s.storyYear)
+    if (y) years.push(y)
+  })
 
   const utterances = sessions.reduce(
     (acc, s) => acc + (s.messages || []).filter((m) => m.role === 'user').length,
@@ -134,6 +138,10 @@ export function archiveGaps(data = {}) {
   }
   if (!sessions.length) {
     gaps.push({ text: '还没有一段口述记录', path: '/interview' })
+  }
+  const noStoryYear = sessions.filter((s) => !validYear(s.storyYear))
+  if (sessions.length && noStoryYear.length) {
+    gaps.push({ text: `${noStoryYear.length} 段口述还没标年份`, path: '/stories' })
   }
   return gaps
 }
@@ -178,6 +186,7 @@ function renderSession(session) {
   if (!msgs.length && !session.notes) return ''
   const who = session.interviewee?.name || '未具名的长辈'
   const when = String(session.date || '').trim()
+  const storyYear = validYear(session.storyYear)
   const minutes = Number(session.duration) > 0 ? `${Math.round(Number(session.duration) / 60)} 分钟` : ''
 
   const body = msgs
@@ -195,7 +204,7 @@ function renderSession(session) {
     <section class="session">
       <header class="session-head">
         <h3 class="session-who">${esc(who)}</h3>
-        <p class="session-meta">${esc([when, minutes].filter(Boolean).join(' · '))}</p>
+        <p class="session-meta">${esc([storyYear ? `讲的是 ${storyYear} 年` : '', when, minutes].filter(Boolean).join(' · '))}</p>
       </header>
       ${session.title ? `<p class="session-title">${esc(session.title)}</p>` : ''}
       <div class="session-body">${body}</div>
@@ -294,7 +303,15 @@ export function buildArchiveHtml(data = {}) {
   const orderedLocations = [...locations].sort(
     (a, b) => (validYear(a.year) || 9999) - (validYear(b.year) || 9999)
   )
-  const orderedSessions = [...sessions].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+  // 口述：标了年份的按年份排（读起来像一部家史），没标的按采访时间倒序跟在后面
+  const orderedSessions = [...sessions].sort((a, b) => {
+    const ay = validYear(a.storyYear)
+    const by = validYear(b.storyYear)
+    if (ay && by) return ay - by
+    if (ay) return -1
+    if (by) return 1
+    return String(b.date || '').localeCompare(String(a.date || ''))
+  })
 
   const span = stats.from && stats.to ? `${stats.from} — ${stats.to}` : ''
 

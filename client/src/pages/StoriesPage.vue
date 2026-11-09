@@ -30,6 +30,7 @@
           <div class="story-main">
             <div class="story-row">
               <span class="story-name">{{ s.name }}</span>
+              <span v-if="s.storyYear" class="story-year">{{ s.storyYear }}</span>
               <span class="story-date">{{ s.date }}</span>
             </div>
             <p v-if="s.preview" class="story-preview">{{ s.preview }}</p>
@@ -55,6 +56,9 @@
           <span>{{ current.date }}</span>
           <span>{{ current.durationText }}</span>
           <span>{{ current.turns }} 条对话</span>
+          <span class="rec-year" :class="{ empty: !current.storyYear }" @click="openYearAsk">
+            {{ current.storyYear ? `${current.storyYear} 年的事` : '标个年份' }}
+          </span>
         </div>
 
         <div class="rec-body">
@@ -71,6 +75,42 @@
         </div>
       </div>
     </van-popup>
+
+    <!-- 标注这段故事发生的年份 -->
+    <van-popup v-model:show="showYearAsk" position="bottom" round>
+      <div class="year-ask">
+        <div class="ya-head">
+          <h3>这段故事，是哪一年的事？</h3>
+          <p>标上年份，它就能进「家族年轮」，和家人的出生、搬迁排在同一条线上。</p>
+        </div>
+        <div v-if="yearSuggestions.length" class="ya-chips">
+          <span class="ya-chip-label">原话里提到过</span>
+          <span
+            v-for="y in yearSuggestions"
+            :key="y"
+            class="ya-chip"
+            :class="{ active: String(yearDraft) === String(y) }"
+            @click="yearDraft = String(y)"
+          >{{ y }}</span>
+        </div>
+        <div class="ya-input">
+          <input
+            v-model="yearDraft"
+            type="tel"
+            inputmode="numeric"
+            maxlength="4"
+            placeholder="比如 1980"
+          />
+          <span>年</span>
+        </div>
+        <div class="ya-foot">
+          <van-button round block type="primary" @click="saveYear">就记这一年</van-button>
+          <van-button v-if="current && current.storyYear" round block plain @click="clearYear">
+            清掉年份
+          </van-button>
+        </div>
+      </div>
+    </van-popup>
   </div>
 </template>
 
@@ -80,13 +120,19 @@ import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
 import EmptyState from '@/components/EmptyState.vue'
+import { guessStoryYear, suggestStoryYears, normalizeStoryYear } from '@/utils/storyYear'
 
 const router = useRouter()
 const goHome = () => router.replace('/')
 const goInterview = () => router.push('/interview')
 
 const showDetail = ref(false)
+const showYearAsk = ref(false)
+const yearDraft = ref('')
+const yearSuggestions = ref([])
 const current = ref(null)
+// storage 不是响应式的，改完年份用它把列表推一下
+const version = ref(0)
 
 const formatDuration = (seconds) => {
   const s = Number(seconds) || 0
@@ -97,6 +143,7 @@ const formatDuration = (seconds) => {
 }
 
 const stories = computed(() => {
+  version.value // 依赖它，改完年份才重新算
   const raw = storage.get(STORAGE_KEYS.INTERVIEW_SESSIONS, [])
   const list = Array.isArray(raw) ? raw : []
   return list
@@ -110,6 +157,8 @@ const stories = computed(() => {
       const preview = String((firstSaid || messages[0])?.text || '').replace(/\s+/g, ' ').slice(0, 46)
       return {
         id: s.id || `${name}-${s.date || ''}`,
+        rawId: s.id,
+        storyYear: Number(s.storyYear) || null,
         name,
         initial: name.charAt(0),
         color: person.color || '#9C5B6B',
@@ -127,6 +176,59 @@ const totalTurns = computed(() => stories.value.reduce((n, s) => n + s.turns, 0)
 const openStory = (s) => {
   current.value = s
   showDetail.value = true
+}
+
+/* ---------- 故事年份 ---------- */
+
+const findRaw = () => {
+  if (!current.value) return null
+  const raw = storage.get(STORAGE_KEYS.INTERVIEW_SESSIONS, [])
+  if (!Array.isArray(raw)) return null
+  return raw.find((s) => s && String(s.id) === String(current.value.rawId)) || null
+}
+
+const openYearAsk = () => {
+  if (!current.value) return
+  const session = findRaw()
+  const guess = current.value.storyYear || guessStoryYear(session)
+  yearDraft.value = guess ? String(guess) : ''
+  yearSuggestions.value = suggestStoryYears(session).filter((y) => y !== guess)
+  showYearAsk.value = true
+}
+
+const writeYear = (year) => {
+  const raw = storage.get(STORAGE_KEYS.INTERVIEW_SESSIONS, [])
+  if (!Array.isArray(raw)) return false
+  const idx = raw.findIndex((s) => s && String(s.id) === String(current.value?.rawId))
+  if (idx < 0) return false
+  const next = raw.slice()
+  next[idx] = { ...next[idx] }
+  if (year) next[idx].storyYear = year
+  else delete next[idx].storyYear
+  storage.set(STORAGE_KEYS.INTERVIEW_SESSIONS, next)
+  current.value = { ...current.value, storyYear: year || null }
+  version.value += 1
+  return true
+}
+
+const saveYear = () => {
+  const y = normalizeStoryYear(yearDraft.value)
+  if (!y) {
+    showToast('填一个四位数年份，比如 1980')
+    return
+  }
+  if (!writeYear(y)) {
+    showToast('没找到这条记录')
+    return
+  }
+  showYearAsk.value = false
+  showToast(`已记为 ${y} 年的事`)
+}
+
+const clearYear = () => {
+  if (!writeYear(null)) return
+  showYearAsk.value = false
+  showToast('年份已清掉')
 }
 
 const exportStory = () => {
@@ -231,6 +333,22 @@ const exportStory = () => {
   flex-shrink: 0;
 }
 
+.story-year {
+  flex-shrink: 0;
+  font-family: var(--fv-font-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fv-primary);
+  background: var(--fv-primary-soft);
+  border: 1px solid var(--fv-border-warm);
+  border-radius: 8px;
+  padding: 1px 7px;
+}
+
+.story-year + .story-date {
+  margin-left: auto;
+}
+
 .story-preview {
   margin: 5px 0 0;
   font-size: 12.5px;
@@ -333,5 +451,112 @@ const exportStory = () => {
   font-size: 10px;
   color: var(--fv-ink-4);
   margin-top: 4px;
+}
+
+/* ---------- 故事年份 ---------- */
+.rec-year {
+  margin-left: auto;
+  color: var(--fv-primary);
+  font-family: var(--fv-font-serif);
+  padding: 1px 8px;
+  border-radius: 8px;
+  background: var(--fv-primary-soft);
+  border: 1px solid var(--fv-border-warm);
+  cursor: pointer;
+}
+
+.rec-year.empty {
+  color: var(--fv-ink-3);
+  background: transparent;
+  border-color: var(--fv-border);
+}
+
+.year-ask {
+  padding: 22px 20px 24px;
+}
+
+.ya-head h3 {
+  margin: 0 0 8px;
+  font-family: var(--fv-font-serif);
+  font-size: 18px;
+  color: var(--fv-ink);
+}
+
+.ya-head p {
+  margin: 0 0 16px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--fv-ink-3);
+}
+
+.ya-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ya-chip-label {
+  font-size: 11px;
+  color: var(--fv-ink-4);
+}
+
+.ya-chip {
+  padding: 5px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  color: var(--fv-ink-2);
+  background: var(--fv-surface-cream);
+  border: 1px solid var(--fv-border-cream);
+  font-family: var(--fv-font-serif);
+  cursor: pointer;
+}
+
+.ya-chip.active {
+  color: #fff;
+  background: var(--fv-primary);
+  border-color: var(--fv-primary);
+}
+
+.ya-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 0 14px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--fv-paper);
+  border: 1px solid var(--fv-border);
+}
+
+.ya-input input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  color: var(--fv-ink);
+  font-family: var(--fv-font-serif);
+}
+
+.ya-input input::placeholder {
+  font-size: 15px;
+  letter-spacing: 0;
+  color: var(--fv-ink-4);
+}
+
+.ya-input span {
+  font-size: 14px;
+  color: var(--fv-ink-3);
+}
+
+.ya-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 </style>

@@ -65,3 +65,6 @@ client/android/keystore.properties
 
 # Vite 临时文件
 *.timestamp-*.mjs
+
+# 本地截图与调试脚本
+.shots/

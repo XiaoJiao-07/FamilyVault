@@ -7,7 +7,7 @@
       <div class="intro-icon"><van-icon name="underway-o" size="20" /></div>
       <div class="intro-text">
         <div class="intro-title">一条时间线，读懂一个家族</div>
-        <div class="intro-desc">把成员的岁月、踏过的土地、传下的物件，按年份串成家族的来路</div>
+        <div class="intro-desc">把长辈讲的故事、成员的岁月、踏过的土地、传下的物件，按年份串成家族的来路</div>
       </div>
     </div>
 
@@ -54,11 +54,18 @@
       </div>
     </div>
 
+    <!-- 这一类还没有：别拿「一片空白」吓人 -->
+    <div v-else-if="items.length" class="no-match">
+      <van-icon name="filter-o" size="26" color="var(--fv-ink-4)" />
+      <p>「{{ filterLabel }}」这一类暂时还没有条目</p>
+      <van-button size="small" round plain @click="activeFilter = 'all'">看全部</van-button>
+    </div>
+
     <!-- 空状态 -->
     <div v-else class="empty-state">
       <div class="empty-icon"><van-icon name="underway-o" size="40" color="var(--fv-ink-4)" /></div>
       <p class="empty-title">家族年轮还是一片空白</p>
-      <p class="empty-desc">去「家族图谱」记录成员的重要年份，或在地图、传家宝里留下印记，这里就会自动长出一条家族历史线</p>
+      <p class="empty-desc">去「家族图谱」记下成员的重要年份，去「故事记录」给长辈的口述标个年份，或在地图、传家宝里留下印记，这里就会自动长出一条家族历史线</p>
       <van-button class="empty-btn" type="primary" round @click="$router.push('/graph')">
         去记录第一位成员
       </van-button>
@@ -77,6 +84,7 @@ const goHome = () => router.replace('/')
 
 const filters = [
   { key: 'all', label: '全部' },
+  { key: 'story', label: '口述实录' },
   { key: 'event', label: '人生大事' },
   { key: 'location', label: '记忆地点' },
   { key: 'heirloom', label: '传家宝' },
@@ -85,6 +93,7 @@ const filters = [
 const activeFilter = ref('all')
 
 const typeLabel = (t) => ({
+  story: '口述实录',
   event: '人生大事',
   location: '记忆地点',
   heirloom: '传家宝',
@@ -94,6 +103,25 @@ const typeLabel = (t) => ({
 // 汇总各模块为统一时间轴条目
 const buildItems = () => {
   const items = []
+
+  // 0. 口述实录（整段采访挂一个「故事年份」）
+  const sessions = storage.get(STORAGE_KEYS.INTERVIEW_SESSIONS, [])
+  ;(Array.isArray(sessions) ? sessions : []).forEach(s => {
+    const y = parseInt(String(s.storyYear || '').trim(), 10)
+    if (!y || isNaN(y)) return
+    const msgs = (s.messages || []).filter(m => m && String(m.text || '').trim())
+    if (!msgs.length) return
+    const said = msgs.find(m => m.role !== 'ai') || msgs[0]
+    const quote = String(said.text || '').replace(/\s+/g, ' ').trim().slice(0, 30)
+    items.push({
+      type: 'story',
+      year: y,
+      title: `「${quote}${quote.length >= 30 ? '…' : ''}」`,
+      desc: [s.date, `${msgs.length} 条对话`].filter(Boolean).join(' · '),
+      person: s.interviewee?.name || '',
+      key: `story-${s.id || y}`
+    })
+  })
 
   // 1. 成员人生大事记
   const members = storage.get(STORAGE_KEYS.FAMILY_MEMBERS, [])
@@ -178,8 +206,11 @@ const buildItems = () => {
 
 const items = buildItems()
 
-const groups = computed(() => {
-  let list = items
+const filterLabel = computed(
+  () => (filters.find(f => f.key === activeFilter.value) || {}).label || ''
+)
+
+const groups = computed(() => {  let list = items
   if (activeFilter.value !== 'all') {
     list = items.filter(i => i.type === activeFilter.value)
   }
@@ -336,6 +367,7 @@ const groups = computed(() => {
 .type-location .tl-dot { background: var(--fv-map); box-shadow: 0 0 0 2px var(--fv-map-soft); }
 .type-heirloom .tl-dot { background: var(--fv-brass); box-shadow: 0 0 0 2px var(--fv-heirloom-soft); }
 .type-capsule .tl-dot { background: var(--fv-capsule); box-shadow: 0 0 0 2px var(--fv-capsule-soft); }
+.type-story .tl-dot { background: var(--fv-ink); box-shadow: 0 0 0 2px var(--fv-border-warm); }
 
 .tl-card {
   background: var(--fv-surface);
@@ -363,6 +395,7 @@ const groups = computed(() => {
 .tag-location { background: var(--fv-map-soft); color: var(--fv-map); }
 .tag-heirloom { background: var(--fv-heirloom-soft); color: var(--fv-heirloom); }
 .tag-capsule { background: var(--fv-capsule-soft); color: var(--fv-capsule); }
+.tag-story { background: var(--fv-paper); color: var(--fv-ink-2); border: 1px solid var(--fv-border); }
 
 .tl-title {
   font-size: 14px;
@@ -389,6 +422,17 @@ const groups = computed(() => {
 .empty-state {
   text-align: center;
   padding: 60px 32px;
+}
+
+.no-match {
+  text-align: center;
+  padding: 48px 32px;
+  color: var(--fv-ink-3);
+}
+
+.no-match p {
+  margin: 10px 0 16px;
+  font-size: 13px;
 }
 
 .empty-icon {
