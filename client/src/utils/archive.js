@@ -141,7 +141,7 @@ export function archiveGaps(data = {}) {
   }
   const noStoryYear = sessions.filter((s) => !validYear(s.storyYear))
   if (sessions.length && noStoryYear.length) {
-    gaps.push({ text: `${noStoryYear.length} 段口述还没标年份`, path: '/stories' })
+    gaps.push({ text: `${noStoryYear.length} 段口述还没标年份`, path: '/stories?filter=noyear' })
   }
   return gaps
 }

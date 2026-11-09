@@ -18,8 +18,45 @@
       <span v-if="aiThinking" class="ai-thinking">正在思考…</span>
     </div>
 
+    <!-- 采访完成页：先让人看到「已经收好了」，再问年份 -->
+    <div v-if="finishedInfo" class="finish-section">
+      <div class="finish-seal">收</div>
+      <h2 class="finish-title">这段，收进家史馆了</h2>
+      <p class="finish-sub">已经存进「故事记录」，家人打开就能读到原话。</p>
+
+      <div class="finish-card">
+        <div class="finish-who">
+          <div class="finish-avatar" :style="{ background: finishedInfo.color }">
+            {{ finishedInfo.initial }}
+          </div>
+          <div class="finish-who-text">
+            <div class="finish-name">{{ finishedInfo.name }}</div>
+            <div class="finish-meta">
+              {{ finishedInfo.duration ? formatDuration(finishedInfo.duration) + ' · ' : '' }}{{ finishedInfo.turns }} 条对话
+            </div>
+          </div>
+        </div>
+        <blockquote class="finish-quote">「{{ finishedInfo.quote }}」</blockquote>
+        <button
+          type="button"
+          class="finish-year"
+          :class="{ empty: !finishedInfo.storyYear }"
+          @click="reopenYearAsk"
+        >
+          <van-icon name="calendar-o" size="14" />
+          <span>{{ finishedInfo.storyYear ? `讲的是 ${finishedInfo.storyYear} 年` : '还没标年份 · 点这里标' }}</span>
+        </button>
+      </div>
+
+      <div class="finish-actions">
+        <van-button round block type="primary" @click="goTimeline">去家族年轮看看</van-button>
+        <van-button round block plain @click="goStories">打开故事记录</van-button>
+        <button type="button" class="finish-again" @click="keepRecording">再录一段</button>
+      </div>
+    </div>
+
     <!-- 采访对象选择 -->
-    <div v-if="!sessionId" class="setup-section">
+    <div v-else-if="!sessionId" class="setup-section">
       <div class="section-header">
         <div class="section-title">选择采访对象</div>
       </div>
@@ -327,21 +364,25 @@
     </van-popup>
 
     <!-- 采访结束后：给这段故事标一个年份 -->
-    <van-popup v-model:show="showYearAsk" position="bottom" round :close-on-click-overlay="false">
+    <van-popup v-model:show="showYearAsk" position="bottom" round @closed="onYearAskClosed">
       <div class="year-ask">
         <div class="ya-head">
           <h3>这段故事，是哪一年的事？</h3>
-          <p>标上年份，它就能进「家族年轮」，和家人的出生、搬迁排在同一条线上。</p>
+          <p v-if="finishedInfo" class="ya-context">
+            {{ finishedInfo.name }} · 「{{ finishedInfo.quote }}」
+          </p>
+          <p class="ya-hint">标上年份，它才能进「家族年轮」，和家人的出生、搬迁排在同一条线上。</p>
         </div>
         <div v-if="yearSuggestions.length" class="ya-chips">
           <span class="ya-chip-label">原话里提到过</span>
-          <span
+          <button
             v-for="y in yearSuggestions"
             :key="y"
+            type="button"
             class="ya-chip"
             :class="{ active: String(yearDraft) === String(y) }"
             @click="pickYear(y)"
-          >{{ y }}</span>
+          >{{ y }}</button>
         </div>
         <div class="ya-input">
           <input
@@ -349,13 +390,15 @@
             type="tel"
             inputmode="numeric"
             maxlength="4"
-            placeholder="比如 1980"
+            placeholder="或自己填，比如 1980"
           />
           <span>年</span>
         </div>
         <div class="ya-foot">
-          <van-button round block type="primary" @click="saveYear">就用这一年</van-button>
-          <van-button round block plain @click="skipYear">说不好，先跳过</van-button>
+          <van-button round block type="primary" :disabled="!canSaveYear" @click="saveYear">
+            记下这一年
+          </van-button>
+          <van-button round block plain @click="skipYear">这段说不清，先跳过</van-button>
         </div>
       </div>
     </van-popup>
@@ -374,7 +417,7 @@ import storage, { STORAGE_KEYS } from '@/utils/storage'
 import { interviewAPI } from '@/utils/api'
 import { cloudChat, getCloudSession } from '@/services/cloud'
 import EmptyState from '@/components/EmptyState.vue'
-import { guessStoryYear, suggestStoryYears, normalizeStoryYear } from '@/utils/storyYear'
+import { suggestStoryYears, normalizeStoryYear } from '@/utils/storyYear'
 
 const router = useRouter()
 // 统一回首页：不逐页后退，回到首页后安卓返回键可直接退出
@@ -412,6 +455,8 @@ const currentSession = ref(null)
 const showYearAsk = ref(false)
 const yearDraft = ref('')
 const yearSuggestions = ref([])
+// 结束采访后的完成页（有它就不再退回设置表单）
+const finishedInfo = ref(null)
 let pendingYearSessionId = null
 let durationTimer = null
 let currentSessionId = null
@@ -905,12 +950,15 @@ const sendManualInput = async () => {
 
 // 结束采访 - 保存到 localStorage
 const endInterview = () => {
-  if (messages.value.length <= 2) {
+  // 只要长辈真正说过一句话就保存。
+  // 一问一答正好是 2 条消息，原来 <=2 就当作「取消」，等于把唯一那句原话删掉。
+  const said = messages.value.filter(m => m.role !== 'ai' && String(m.text || '').trim())
+  if (!said.length) {
     sessionId.value = null
     messages.value = []
     recordingDuration.value = 0
     currentSessionId = null
-    showToast('采访已取消')
+    showToast('这次没记下话，已退出')
     return
   }
 
@@ -935,10 +983,24 @@ const endInterview = () => {
     saveInterviewees()
   }
 
-  // 记下这段故事发生在哪一年：猜一个给用户点，不替他决定，也不逼他答
-  const guess = guessStoryYear(session)
-  yearSuggestions.value = suggestStoryYears(session).filter(y => y !== guess)
-  yearDraft.value = guess ? String(guess) : ''
+  const turns = messages.value.filter(m => m && String(m.text || '').trim()).length
+  const quote = String(said[0].text || '').replace(/\s+/g, ' ').trim()
+
+  // 结束落在一个「已经收好」的完成页上，而不是退回选择采访对象的表单
+  finishedInfo.value = {
+    id: session.id,
+    name: session.interviewee?.name || '这位家人',
+    color: session.interviewee?.color || 'var(--fv-primary)',
+    initial: (session.interviewee?.name || '家').charAt(0),
+    quote: quote.length > 26 ? `${quote.slice(0, 26)}…` : quote,
+    duration: session.duration,
+    turns,
+    storyYear: null
+  }
+
+  // 年份：给建议、不预填、不替人决定
+  yearSuggestions.value = suggestStoryYears(session)
+  yearDraft.value = ''
   pendingYearSessionId = session.id
   showYearAsk.value = true
 
@@ -949,7 +1011,30 @@ const endInterview = () => {
   currentSessionId = null
   transcribedText.value = ''
 
-  showToast('采访已保存')
+  showToast('已收进故事记录')
+}
+
+// 完成页上的「标年份」重新打开弹层
+const reopenYearAsk = () => {
+  if (!finishedInfo.value) return
+  pendingYearSessionId = finishedInfo.value.id
+  yearDraft.value = finishedInfo.value.storyYear ? String(finishedInfo.value.storyYear) : ''
+  showYearAsk.value = true
+}
+
+const keepRecording = () => {
+  finishedInfo.value = null
+}
+
+const goStories = () => {
+  // 离开完成页就收起它，下次从底部标签回来看到的是正常入口
+  finishedInfo.value = null
+  router.push('/stories')
+}
+
+const goTimeline = () => {
+  finishedInfo.value = null
+  router.push('/timeline')
 }
 
 // 把年份写回刚存下的那段记录（走 storage，云端会跟着同步）
@@ -969,16 +1054,24 @@ const skipYear = () => {
   showYearAsk.value = false
 }
 
+// 点遮罩/侧滑关掉时，别把上一个 sessionId 留在手上
+const onYearAskClosed = () => {
+  pendingYearSessionId = null
+}
+
+// 必须真的选了/填了年份才让写库——机器猜的年份不能一键落库
+const canSaveYear = computed(() => !!normalizeStoryYear(yearDraft.value))
+
 const saveYear = () => {
   const y = normalizeStoryYear(yearDraft.value)
-  if (!y) {
-    showToast('填一个四位数年份，比如 1980')
-    return
-  }
+  if (!y) return
   if (!writeStoryYear(y)) {
     showToast('没找到那段记录，请到故事记录里补')
   } else {
     showToast(`已记为 ${y} 年的事`)
+    if (finishedInfo.value && String(finishedInfo.value.id) === String(pendingYearSessionId)) {
+      finishedInfo.value.storyYear = y
+    }
   }
   pendingYearSessionId = null
   showYearAsk.value = false
@@ -1708,7 +1801,18 @@ onUnmounted(() => {
   color: var(--fv-ink);
 }
 
-.ya-head p {
+.ya-context {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--fv-surface-cream);
+  border: 1px solid var(--fv-border-cream);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--fv-ink-2);
+}
+
+.ya-hint {
   margin: 0 0 16px;
   font-size: 12.5px;
   line-height: 1.7;
@@ -1729,9 +1833,14 @@ onUnmounted(() => {
 }
 
 .ya-chip {
-  padding: 5px 12px;
-  border-radius: 14px;
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  min-width: 64px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 15px;
   color: var(--fv-ink-2);
   background: var(--fv-surface-cream);
   border: 1px solid var(--fv-border-cream);
@@ -1784,5 +1893,134 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* ---------- 采访完成页 ---------- */
+.finish-section {
+  padding: 32px 20px 40px;
+  text-align: center;
+}
+
+.finish-seal {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 16px;
+  border: 2px solid var(--fv-primary);
+  border-radius: 10px;
+  transform: rotate(-4deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--fv-font-serif);
+  font-size: 24px;
+  color: var(--fv-primary);
+  background: var(--fv-primary-soft);
+}
+
+.finish-title {
+  margin: 0 0 8px;
+  font-family: var(--fv-font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--fv-ink);
+}
+
+.finish-sub {
+  margin: 0 auto 22px;
+  max-width: 280px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--fv-ink-2);
+}
+
+.finish-card {
+  text-align: left;
+  padding: 16px;
+  background: var(--fv-surface);
+  border: 1px solid var(--fv-border);
+  border-radius: var(--fv-radius);
+  box-shadow: var(--fv-shadow-sm);
+}
+
+.finish-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.finish-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.finish-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fv-ink);
+}
+
+.finish-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--fv-ink-3);
+}
+
+.finish-quote {
+  margin: 14px 0 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--fv-border-warm);
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--fv-ink-2);
+}
+
+.finish-year {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 14px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--fv-border-warm);
+  background: var(--fv-primary-soft);
+  color: var(--fv-primary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.finish-year.empty {
+  border-style: dashed;
+  border-color: var(--fv-border);
+  background: transparent;
+  color: var(--fv-ink-2);
+}
+
+.finish-actions {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.finish-again {
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--fv-ink-3);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
 </style>
