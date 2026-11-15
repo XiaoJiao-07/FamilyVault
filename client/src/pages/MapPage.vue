@@ -248,6 +248,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import { cloudChat, getCloudSession } from '@/services/cloud'
 import { geoApi } from '@/services/api'
 import { wgs84ToGcj02, gcj02ToWgs84, isValidCoord } from '@/utils/coord'
+import { checkNewLocation } from '@/utils/placeDupes'
 
 const router = useRouter()
 const route = useRoute()
@@ -953,7 +954,29 @@ const onFormClosed = () => {
 }
 
 // ---- 保存 ----
-const onAddLocation = () => {
+const persistLocation = (payload) => {
+  let target = null
+  if (editingId.value) {
+    const idx = locations.value.findIndex((l) => l.id === editingId.value)
+    if (idx >= 0) {
+      locations.value[idx] = { ...locations.value[idx], ...payload }
+      target = locations.value[idx]
+    }
+    showToast('已保存修改')
+  } else {
+    target = { id: Date.now(), ...payload }
+    locations.value.push(target)
+    showToast('已添加')
+  }
+
+  saveLocations()
+  refreshMarkers()
+  showAddLocation.value = false
+  // 等弹窗收完再飞，否则偏移按弹窗高度算，落点会歪
+  if (target) setTimeout(() => flyToLocation(target), 340)
+}
+
+const onAddLocation = async () => {
   if (!newLocation.value.name.trim()) {
     showToast('请输入地点名称')
     return
@@ -974,25 +997,27 @@ const onAddLocation = () => {
     coordSys: 'gcj02'
   }
 
-  let target = null
-  if (editingId.value) {
-    const idx = locations.value.findIndex((l) => l.id === editingId.value)
-    if (idx >= 0) {
-      locations.value[idx] = { ...locations.value[idx], ...payload }
-      target = locations.value[idx]
-    }
-    showToast('已保存修改')
-  } else {
-    target = { id: Date.now(), ...payload }
-    locations.value.push(target)
-    showToast('已添加')
+  // 录入时就查一遍：点歪的坐标会毁掉整张地图的视野，还会跟着进年轮和档案
+  const others = locations.value.filter((l) => String(l.id) !== String(editingId.value))
+  const warning = checkNewLocation(payload, others)
+  if (!warning) {
+    persistLocation(payload)
+    return
   }
 
-  saveLocations()
-  refreshMarkers()
-  showAddLocation.value = false
-  // 等弹窗收完再飞，否则偏移按弹窗高度算，落点会歪
-  if (target) setTimeout(() => flyToLocation(target), 340)
+  const isDupe = warning.level === 'dupe'
+  try {
+    await showConfirmDialog({
+      title: isDupe ? '这条好像记过了' : '位置离得有点远',
+      message: warning.message,
+      confirmButtonText: isDupe ? '再记一条' : '就这样存',
+      cancelButtonText: isDupe ? '那就不存' : '我重新点一下',
+      confirmButtonColor: '#B4442E'
+    })
+    persistLocation(payload)
+  } catch {
+    if (!isDupe) showToast('拖动大头针，或搜地名重新定位')
+  }
 }
 
 const resetAddForm = () => {

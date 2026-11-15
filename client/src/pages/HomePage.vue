@@ -205,6 +205,7 @@ import { showToast } from 'vant'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
 import { authAPI } from '@/utils/api'
 import { checkDueCapsules } from '@/utils/capsule'
+import { cnDateTime } from '@/utils/timeText'
 
 const router = useRouter()
 const currentUser = ref(null)
@@ -304,8 +305,8 @@ const loadStats = () => {
   recentActivities.value = sessions.slice(0, 3).map(s => ({
     avatar: s.interviewee.name.charAt(0),
     title: `采访${s.interviewee.name}`,
-    desc: `${s.messages.length} 条对话 · ${formatDuration(s.duration)}`,
-    time: s.date,
+    desc: `聊了 ${formatDuration(s.duration)} · ${s.messages.length} 条对话`,
+    time: cnDateTime(s.date),
     color: s.interviewee.color
   }))
 }

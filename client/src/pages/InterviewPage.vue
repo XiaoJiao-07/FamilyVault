@@ -32,7 +32,7 @@
           <div class="finish-who-text">
             <div class="finish-name">{{ finishedInfo.name }}</div>
             <div class="finish-meta">
-              {{ finishedInfo.duration ? formatDuration(finishedInfo.duration) + ' · ' : '' }}{{ finishedInfo.turns }} 条对话
+              {{ finishedInfo.duration ? '聊了 ' + formatDuration(finishedInfo.duration) + ' · ' : '' }}{{ finishedInfo.turns }} 条对话
             </div>
           </div>
         </div>
@@ -191,6 +191,10 @@
               <div class="question-text">{{ message.text }}</div>
               <div class="question-skip" @click="skipQuestion">跳过这题，换下一个</div>
             </div>
+            <div v-else-if="message.role === 'user'" class="quote-wrap">
+              <div class="said-by">{{ (selectedInterviewee && selectedInterviewee.name) || '家人的话' }}</div>
+              <div class="message-bubble user">{{ message.text }}</div>
+            </div>
             <div v-else class="message-bubble" :class="message.role">{{ message.text }}</div>
             <audio
               v-if="message.audioUrl"
@@ -316,7 +320,7 @@
             </div>
             <div class="history-info">
               <div class="history-name">{{ session.interviewee.name }}</div>
-              <div class="history-date">{{ session.date }}</div>
+              <div class="history-date">{{ cnDate(session.date) }}</div>
               <div class="history-stats">
                 {{ session.messages.length }}条对话 · {{ formatDuration(session.duration) }}
               </div>
@@ -336,8 +340,8 @@
           <van-icon name="share-o" size="20" @click="shareSession" />
         </div>
         <div class="detail-meta">
-          <span>{{ currentSession.date }}</span>
-          <span>{{ formatDuration(currentSession.duration) }}</span>
+          <span>{{ cnDateTime(currentSession.date) }}</span>
+          <span>聊了 {{ formatDuration(currentSession.duration) }}</span>
           <span>{{ currentSession.messages.length }}条对话</span>
         </div>
         <div class="detail-messages">
@@ -418,6 +422,7 @@ import { interviewAPI } from '@/utils/api'
 import { cloudChat, getCloudSession } from '@/services/cloud'
 import EmptyState from '@/components/EmptyState.vue'
 import { suggestStoryYears, normalizeStoryYear } from '@/utils/storyYear'
+import { cnDate, cnDateTime } from '@/utils/timeText'
 
 const router = useRouter()
 // 统一回首页：不逐页后退，回到首页后安卓返回键可直接退出
@@ -1356,7 +1361,7 @@ onUnmounted(() => {
 }
 
 .message-item.user {
-  flex-direction: row-reverse;
+  flex-direction: row;
 }
 
 .message-avatar {
@@ -1385,7 +1390,8 @@ onUnmounted(() => {
 }
 
 .message-item.user .message-content {
-  text-align: right;
+  text-align: left;
+  max-width: 100%;
 }
 
 .message-bubble {
@@ -1406,10 +1412,32 @@ onUnmounted(() => {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
+/* 长辈说的话不是「我发出去的消息」，是一段要被存几十年的原话：
+   左对齐、米色纸底、左边一道朱线，读起来像引文而不是聊天 */
 .message-bubble.user {
-  background: var(--fv-primary);
-  color: white;
-  border-bottom-right-radius: 6px;
+  display: block;
+  background: var(--fv-surface-cream, #fdf7ec);
+  color: var(--fv-ink);
+  border-left: 3px solid var(--fv-primary);
+  border-radius: 4px 12px 12px 4px;
+  padding: 12px 16px 13px 15px;
+  font-family: var(--fv-font-serif);
+  font-size: 15.5px;
+  line-height: 1.85;
+  text-align: left;
+  box-shadow: none;
+}
+
+.quote-wrap {
+  width: 100%;
+}
+
+.said-by {
+  margin-bottom: 4px;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--fv-ink-3);
+  text-align: left;
 }
 
 .message-time {
@@ -1766,14 +1794,16 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   padding: 12px 14px;
+  background: var(--fv-surface-cream, #fdf7ec);
+  border: 1px solid var(--fv-border-cream);
 }
 
 .message-bubble.typing span {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--fv-ink-4);
-  animation: typing-breathe 1.2s ease-in-out infinite;
+  background: var(--fv-ink-3);
+  animation: typing-breathe 1.1s ease-in-out infinite;
 }
 
 .message-bubble.typing span:nth-child(2) {

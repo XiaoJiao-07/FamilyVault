@@ -40,8 +40,10 @@ const route = useRoute()
 const router = useRouter()
 
 const activeTab = computed(() => {
+  // 故事记录、记忆地点、家族档案这些不在底部导航里：
+  // 找不到对应 tab 时不要假装停在首页，干脆一个都不亮
   const hit = tabs.find(t => t.path === route.path)
-  return hit ? hit.path : '/'
+  return hit ? hit.path : ''
 })
 
 // 标签页之间用 replace，不往历史里堆栈：

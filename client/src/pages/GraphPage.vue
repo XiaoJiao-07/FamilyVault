@@ -21,6 +21,14 @@
       </div>
     </div>
 
+    <!-- 还没连关系：说清现在看到的是什么，别让人以为家谱就长这样 -->
+    <div v-if="hasMembers && graphData.nodes.length > 1 && !graphData.edges.length" class="kin-bar">
+      <div class="kb-main">
+        <p class="kb-title">这 {{ graphData.nodes.length }} 位还没连起来</p>
+        <p class="kb-desc">现在只是并排摆着。点一位家人，在详情里「家族关系 → ＋添加」写上谁是谁的谁，家谱才立得住。</p>
+      </div>
+    </div>
+
     <!-- D3 图谱容器 -->
     <div v-show="hasMembers" ref="graphContainer" class="graph-canvas"></div>
 
@@ -34,8 +42,8 @@
       @action="openAddMember"
     />
 
-    <!-- 图例 -->
-    <div v-if="hasMembers" class="legend">
+    <!-- 图例：一条关系都没有时，「亲子 / 夫妻」在图上是找不到的，先不摆出来 -->
+    <div v-if="hasMembers && graphData.edges.length" class="legend">
       <div class="legend-item">
         <span class="legend-dot male"></span>
         <span>男</span>
@@ -136,7 +144,7 @@
       v-model:show="showAddMember"
       position="bottom"
       round
-      :style="{ height: '50%' }"
+      :style="{ height: '72%' }"
     >
       <div class="add-member-form">
         <h3>{{ editingId ? '编辑成员' : '添加家族成员' }}</h3>
@@ -186,6 +194,33 @@
               placeholder="TA 的生平简介、性格、口头禅…"
             />
           </van-cell-group>
+
+          <!-- 接进族谱：不问一句「他是谁的谁」，图谱就是一盘散沙 -->
+          <div v-if="!editingId && graphData.nodes.length" class="kin-editor">
+            <div class="relations-head">
+              <h4>接进族谱</h4>
+              <span class="kin-hint">选填，但不选就画不出家里的位置</span>
+            </div>
+            <p class="kin-sentence">
+              TA 是
+              <button
+                type="button"
+                class="kin-pick"
+                :class="{ 'is-empty': linkRefId == null }"
+                @click="pickLinkRef"
+              >{{ linkRefName || '家里的哪位' }}</button>
+              的
+              <button
+                type="button"
+                class="kin-pick"
+                :class="{ 'is-empty': !linkRole }"
+                @click="pickLinkRole"
+              >{{ linkRole || '什么人' }}</button>
+            </p>
+            <p v-if="linkRefId == null && !linkRole" class="kin-example">
+              例如：TA 是「王建国」的「儿子」。连上之后，家谱树才不会把一家人摆成一排。
+            </p>
+          </div>
 
           <div class="events-editor">
             <div class="relations-head">
@@ -253,6 +288,23 @@
       </div>
     </van-popup>
 
+    <!-- 接进族谱：选一位家人 -->
+    <van-action-sheet
+      v-model:show="showLinkRefPicker"
+      :actions="linkRefActions"
+      cancel-text="取消"
+      close-on-click-action
+      @select="onPickLinkRef"
+    />
+    <!-- 接进族谱：选称谓 -->
+    <van-action-sheet
+      v-model:show="showLinkRolePicker"
+      :actions="linkRoleActions"
+      cancel-text="取消"
+      close-on-click-action
+      @select="onPickLinkRole"
+    />
+
     <!-- 选择成员 -->
     <van-popup v-model:show="showMemberPicker" position="bottom" round>
       <van-picker
@@ -302,6 +354,72 @@ const newMember = ref({
   bio: '',
   events: []
 })
+
+// 「TA 是 ___ 的 ___」：填了才连得上，不填也能存
+const linkRefId = ref(null)
+const linkRole = ref('')
+const showLinkRefPicker = ref(false)
+const showLinkRolePicker = ref(false)
+
+const linkRefName = computed(() => {
+  const m = graphData.value.nodes.find(n => String(n.id) === String(linkRefId.value))
+  return m ? m.name : ''
+})
+
+const linkRefActions = computed(() =>
+  graphData.value.nodes
+    .filter(n => n && n.name && n.id != null)
+    .map(n => ({ name: n.name, value: n.id }))
+)
+
+const linkRoleActions = [
+  { name: '父亲', value: '父亲' },
+  { name: '母亲', value: '母亲' },
+  { name: '儿子', value: '儿子' },
+  { name: '女儿', value: '女儿' },
+  { name: '配偶', value: '配偶' },
+  { name: '兄弟', value: '兄弟' },
+  { name: '姐妹', value: '姐妹' }
+]
+
+const pickLinkRef = () => {
+  if (!graphData.value.nodes.length) {
+    showToast('先添加一位家人，才能连起来')
+    return
+  }
+  showLinkRefPicker.value = true
+}
+const pickLinkRole = () => {
+  showLinkRolePicker.value = true
+}
+const onPickLinkRef = (action) => {
+  linkRefId.value = action.value
+}
+const onPickLinkRole = (action) => {
+  linkRole.value = action.value
+}
+const resetLink = () => {
+  linkRefId.value = null
+  linkRole.value = ''
+}
+
+/**
+ * 「TA 是 refer 的 role」→ 一条方向正确的边。
+ * 约定（与家谱树解析一致）：label 前字是父母角色，后字看孩子的性别。
+ */
+const edgeFromKin = (me, refer, role) => {
+  const female = (p) => String((p && p.gender) || '').trim() === '女'
+  switch (role) {
+    case '父亲': return { source: me.id, target: refer.id, label: female(refer) ? '父女' : '父子' }
+    case '母亲': return { source: me.id, target: refer.id, label: female(refer) ? '母女' : '母子' }
+    case '儿子': return { source: refer.id, target: me.id, label: female(refer) ? '母子' : '父子' }
+    case '女儿': return { source: refer.id, target: me.id, label: female(refer) ? '母女' : '父女' }
+    case '配偶': return { source: refer.id, target: me.id, label: '夫妻' }
+    case '兄弟':
+    case '姐妹': return { source: refer.id, target: me.id, label: role }
+    default: return null
+  }
+}
 
 // 不预置任何示例成员/关系：数据全部来自用户真实录入
 // 从 localStorage 加载数据，没有就是空的，等用户录入
@@ -467,6 +585,54 @@ const renderGraph = () => {
   // 手机上单指拖动要能拖图，不能让浏览器把页面滚走
   svg.style('touch-action', 'none').style('-webkit-tap-highlight-color', 'transparent')
 
+  // 一条关系都没有时，斥力会把节点甩到画布外（实测妈妈的卡片被切成半个）。
+  // 这种情况改用固定环形排布，先保证每个人都在视野里。
+  if (!linkEdges.length && graphData.value.nodes.length) {
+    const list = graphData.value.nodes
+    const cx = width / 2
+    const cy = height / 2
+    const R = Math.min(width, height) / 2 - 70
+    list.forEach((n, i) => {
+      const a = (Math.PI * 2 * i) / list.length - Math.PI / 2
+      n.x = cx + Math.cos(a) * R
+      n.y = cy + Math.sin(a) * R
+      n.vx = 0
+      n.vy = 0
+    })
+    node.attr('transform', d => `translate(${d.x},${d.y})`)
+    simulation.stop()
+  } else {
+    // 先离线跑完布局，再把整张图缩放进视野，避免一打开就有节点在屏幕外
+    simulation.stop()
+    simulation.tick(320)
+    const xs = graphData.value.nodes.map((d) => d.x)
+    const ys = graphData.value.nodes.map((d) => d.y)
+    const pad = 72
+    const spanX = Math.max(...xs) - Math.min(...xs) + pad * 2
+    const spanY = Math.max(...ys) - Math.min(...ys) + pad * 2
+    const k = Math.min(1.1, Math.max(0.34, Math.min(width / spanX, height / spanY)))
+    const midX = (Math.max(...xs) + Math.min(...xs)) / 2
+    const midY = (Math.max(...ys) + Math.min(...ys)) / 2
+    svg.call(
+      zoom.transform,
+      d3.zoomIdentity.translate(width / 2 - midX * k, height / 2 - midY * k).scale(k)
+    )
+    simulation.on('tick', () => {
+      link
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y)
+
+      node.attr('transform', d => `translate(${d.x},${d.y})`)
+
+      linkLabel
+        .attr('x', d => (d.source.x + d.target.x) / 2)
+        .attr('y', d => (d.source.y + d.target.y) / 2)
+    })
+    simulation.alpha(0.35).restart()
+  }
+
   simulation.on('tick', () => {
     link
       .attr('x1', d => d.source.x)
@@ -598,13 +764,87 @@ const buildFamilyTree = (nodes, edges) => {
   const built = roots.map(buildGroup).filter(Boolean)
   if (!built.length) return null
   if (built.length === 1) return built[0]
-  return { key: '__root__', members: [], virtual: true, children: built }
+  // 一条关系都没有时不画「族」这个根：那会把一家人摆成平辈，画出假的族谱
+  return { key: '__root__', members: [], virtual: true, loose: !edges.length, children: built }
 }
 
 // 树卡片尺寸（px）
 const CARD_W = 104
 const CARD_H = 92
 const CARD_GAP = 18
+
+// 还没连关系时的家谱树：一人一张卡，竖着排，点谁给谁加关系
+function renderLooseMembers(container, width) {
+  const list = graphData.value.nodes
+  const cardW = Math.min(width - 40, 330)
+  const cardH = 64
+  const gap = 12
+  const top = 18
+  const height = Math.max(420, list.length * (cardH + gap) + top * 2)
+
+  const svg = d3.select(container)
+    .append('svg')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('viewBox', `0 0 ${width} ${height}`)
+
+  const x0 = (width - cardW) / 2
+
+  const row = svg.append('g')
+    .selectAll('g')
+    .data(list)
+    .enter()
+    .append('g')
+    .attr('transform', (d, i) => `translate(${x0},${top + i * (cardH + gap)})`)
+    .style('cursor', 'pointer')
+    .on('click', (event, d) => onNodeClick(d))
+
+  row.append('rect')
+    .attr('width', cardW)
+    .attr('height', cardH)
+    .attr('rx', 14)
+    .attr('fill', '#FFFDF8')
+    .attr('stroke', '#E8DCC8')
+    .attr('stroke-width', 1)
+
+  row.append('circle')
+    .attr('cx', 36)
+    .attr('cy', cardH / 2)
+    .attr('r', 20)
+    .attr('fill', d => (d.gender === '女' ? '#9C5B6B' : '#4A6B7C'))
+
+  row.append('text')
+    .text(d => (d.name || '?').charAt(0))
+    .attr('x', 36)
+    .attr('y', cardH / 2 + 5)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', '14px')
+    .attr('font-weight', '600')
+    .attr('fill', 'white')
+
+  row.append('text')
+    .text(d => d.name || '未命名')
+    .attr('x', 66)
+    .attr('y', cardH / 2 - 4)
+    .attr('font-size', '14px')
+    .attr('font-weight', '600')
+    .attr('fill', '#2B2119')
+
+  row.append('text')
+    .text(d => [d.birthYear ? `${d.birthYear} 年生` : '', d.hometown || ''].filter(Boolean).join(' · ') || '点一下，写上谁是谁的谁')
+    .attr('x', 66)
+    .attr('y', cardH / 2 + 15)
+    .attr('font-size', '11.5px')
+    .attr('fill', '#8E7C69')
+
+  row.append('text')
+    .text('›')
+    .attr('x', cardW - 18)
+    .attr('y', cardH / 2 + 5)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', '18px')
+    .attr('fill', '#C9BCA8')
+}
 
 // 渲染家谱树（家庭组卡片式：夫妻并排，子代干线垂下）
 const renderTree = () => {
@@ -617,6 +857,12 @@ const renderTree = () => {
 
   const width = container.clientWidth
   d3.select(container).selectAll('*').remove()
+
+  // 一条关系都没有：不画「族」根，也不把人摆成一排平辈——那看起来像真家谱
+  if (graphData.value.nodes.length > 1 && !graphData.value.edges.length) {
+    renderLooseMembers(container, width)
+    return
+  }
 
   const treeData = buildFamilyTree(graphData.value.nodes, graphData.value.edges)
   if (!treeData) return
@@ -897,7 +1143,22 @@ const onAddMember = async () => {
     showToast('已保存')
   } else {
     // 用时间戳生成 id，避免 Math.max 遇到非数字 id 产生 NaN
-    graphData.value.nodes.push({ id: Date.now(), ...fields() })
+    const node = { id: Date.now(), ...fields() }
+    graphData.value.nodes.push(node)
+
+    // 顺手把「TA 是谁的谁」写成一条关系，图谱一打开就是连着的
+    if (linkRefId.value != null && linkRole.value) {
+      const refer = graphData.value.nodes.find(n => String(n.id) === String(linkRefId.value))
+      const edge = refer ? edgeFromKin(node, refer, linkRole.value) : null
+      if (edge) {
+        const dup = graphData.value.edges.some(e => {
+          const s = idOf(e.source)
+          const t = idOf(e.target)
+          return (s === edge.source && t === edge.target) || (s === edge.target && t === edge.source)
+        })
+        if (!dup) graphData.value.edges.push(edge)
+      }
+    }
     showToast('添加成功')
   }
 
@@ -905,6 +1166,7 @@ const onAddMember = async () => {
   showAddMember.value = false
   editingId.value = null
   newMember.value = { name: '', gender: '', birthYear: '', hometown: '', occupation: '', bio: '', events: [] }
+  resetLink()
 
   await nextTick()
   if (viewMode.value === 'tree') renderTree()
@@ -917,12 +1179,16 @@ const editingId = ref(null)
 const openAddMember = () => {
   editingId.value = null
   newMember.value = { name: '', gender: '', birthYear: '', hometown: '', occupation: '', bio: '', events: [] }
+  resetLink()
   showAddMember.value = true
 }
 
 // 弹窗关闭（含点遮罩/取消）时清理编辑态
 watch(showAddMember, v => {
-  if (!v) editingId.value = null
+  if (!v) {
+    editingId.value = null
+    resetLink()
+  }
 })
 
 const openEditMember = () => {
@@ -1442,8 +1708,79 @@ onUnmounted(() => {
   flex: 1;
 }
 
+/* ---------- 接进族谱 ---------- */
+.kin-editor {
+  margin: 14px 16px 0;
+}
+
+.kin-hint {
+  font-size: 11px;
+  color: var(--fv-ink-4);
+}
+
+.kin-sentence {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 2.2;
+  color: var(--fv-ink-2);
+}
+
+.kin-pick {
+  min-height: 36px;
+  padding: 4px 12px;
+  margin: 0 2px;
+  border-radius: 10px;
+  border: 1px solid var(--fv-border-warm);
+  background: var(--fv-primary-soft);
+  color: var(--fv-primary);
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.kin-pick.is-empty {
+  color: var(--fv-ink-3);
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--fv-border);
+  font-weight: 500;
+}
+
+.kin-example {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--fv-ink-4);
+}
+
+.kin-bar {
+  margin: 10px 16px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--fv-surface-cream);
+  border: 1px solid var(--fv-border-warm);
+}
+
+.kb-title {
+  margin: 0 0 4px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--fv-ink-2);
+}
+
+.kb-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--fv-ink-3);
+}
+
 .add-member-form {
   padding: 16px;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .add-member-form h3 {

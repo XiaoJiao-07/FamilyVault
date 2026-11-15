@@ -51,11 +51,11 @@
                 class="story-year-cta"
                 @click.stop="quickYear(s)"
               >标年份</button>
-              <span class="story-date">{{ s.date }}</span>
+              <span class="story-date">{{ s.dateText }}</span>
             </div>
             <p v-if="s.preview" class="story-preview">{{ s.preview }}</p>
             <div class="story-meta">
-              {{ s.turns }} 条对话 · {{ s.durationText }}
+              {{ s.durationText }} · {{ s.turns }} 条对话
             </div>
           </div>
           <van-icon name="arrow" size="14" color="var(--fv-ink-4)" />
@@ -79,8 +79,8 @@
         </div>
 
         <div class="rec-meta">
-          <span>{{ current.date }}</span>
-          <span>{{ current.durationText }}</span>
+          <span>{{ current.whenText || current.dateText }}</span>
+          <span>聊了 {{ current.durationText }}</span>
           <span>{{ current.turns }} 条对话</span>
         </div>
 
@@ -163,6 +163,7 @@ import { showToast } from 'vant'
 import storage, { STORAGE_KEYS } from '@/utils/storage'
 import EmptyState from '@/components/EmptyState.vue'
 import { suggestStoryYears, normalizeStoryYear } from '@/utils/storyYear'
+import { cnDate, cnDateTime } from '@/utils/timeText'
 
 const router = useRouter()
 const route = useRoute()
@@ -208,6 +209,8 @@ const stories = computed(() => {
         initial: name.charAt(0),
         color: person.color || '#9C5B6B',
         date: s.date || '',
+        dateText: cnDate(s.date),
+        whenText: cnDateTime(s.date),
         durationText: formatDuration(s.duration),
         turns: messages.length,
         preview,
@@ -305,7 +308,7 @@ const clearYear = () => {
 const exportStory = () => {
   const s = current.value
   if (!s) return
-  let text = `故事记录：${s.name}\n时间：${s.date}\n${s.durationText} · ${s.turns} 条对话\n\n`
+  let text = `故事记录：${s.name}\n时间：${s.dateText || s.date}\n${s.durationText} · ${s.turns} 条对话\n\n`
   s.messages.forEach((m) => {
     text += `【${m.role === 'ai' ? '采访助手' : s.name}】${m.time || ''}\n${m.text}\n\n`
   })
@@ -616,20 +619,29 @@ const exportStory = () => {
   border-top-left-radius: 4px;
 }
 
+/* 长辈原话按引文排：左对齐、纸底、左侧一道朱线——
+   右对齐读长句很费劲，而这是要留着传下去的那部分 */
 .rec-msg.is-me .rec-msg__bubble {
-  background: var(--fv-primary-soft);
-  border: 1px solid var(--fv-border-warm);
+  display: block;
+  background: var(--fv-surface-cream);
+  border: none;
+  border-left: 3px solid var(--fv-primary);
+  border-radius: 4px 12px 12px 4px;
   color: var(--fv-ink);
-  border-top-left-radius: 14px;
-  border-top-right-radius: 4px;
+  font-family: var(--fv-font-serif);
+  font-size: 15.5px;
+  line-height: 1.85;
+  padding: 12px 16px 13px 15px;
+  text-align: left;
 }
 
 .rec-msg.is-me {
-  text-align: right;
+  text-align: left;
 }
 
 .rec-msg.is-me .rec-msg__who {
-  text-align: right;
+  text-align: left;
+  color: var(--fv-ink-3);
 }
 
 .rec-msg__time {

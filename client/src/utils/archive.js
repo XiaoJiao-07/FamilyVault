@@ -8,6 +8,8 @@
 
 /* ---------------- 基础工具 ---------------- */
 
+import { cnDateTime } from './timeText'
+
 const esc = (s) =>
   String(s ?? '')
     .replace(/&/g, '&amp;')
@@ -25,11 +27,9 @@ const paragraphs = (text, cls = '') =>
     .map((line) => `<p class="${cls}">${esc(line)}</p>`)
     .join('')
 
-const pad = (n) => String(n).padStart(2, '0')
-
 const today = () => {
   const d = new Date()
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日`
 }
 
 const CN_NUM = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十']
@@ -181,11 +181,17 @@ function renderMemberCard(member, relOf) {
     </article>`
 }
 
+/** 纸面上数字与汉字之间留一点空，印出来才不挤（跟着档案走，界面里不用） */
+const spaced = (s) =>
+  String(s || '')
+    .replace(/(\d+)(年|月|日)/g, '$1 $2')
+    .replace(/(年|月|日)(?=\d)/g, '$1 ')
+
 function renderSession(session) {
   const msgs = (session.messages || []).filter((m) => String(m.text || '').trim())
   if (!msgs.length && !session.notes) return ''
   const who = session.interviewee?.name || '未具名的长辈'
-  const when = String(session.date || '').trim()
+  const when = spaced(cnDateTime(session.date))
   const storyYear = validYear(session.storyYear)
   const minutes = Number(session.duration) > 0 ? `${Math.round(Number(session.duration) / 60)} 分钟` : ''
 
@@ -322,7 +328,7 @@ export function buildArchiveHtml(data = {}) {
   if (stats.locations) prefaceBits.push(`${stats.locations} 处记忆地点`)
   if (stats.heirlooms) prefaceBits.push(`${stats.heirlooms} 件传家之物`)
   const preface = prefaceBits.length
-    ? `这份档案收录了${familyName}的${prefaceBits.join('、')}${span ? `，时间自 ${stats.from} 年至 ${stats.to} 年` : ''}。`
+    ? `这份档案收录了${familyName}的 ${prefaceBits.join('、')}${span ? `，时间自 ${stats.from} 年至 ${stats.to} 年` : ''}。`
     : `这份档案还没有内容。回到 FamilyVault，先记下一位家人、一个老地方，或者一段长辈的话。`
 
   const sections = []
